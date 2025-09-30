@@ -1,0 +1,19 @@
+import { Routes, BrowserRouter, Route, Navigate } from 'react-router';
+import HomePage from './pages/HomePage';
+import UtilidaPage from './pages/UtilidadPage';
+import VentasTotalesPage from './pages/VentasTotalesPage';
+//import SidebarLayout from './pages/SidebarLayout';
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />}>
+          <Route index element={<Navigate to="/utilidad" replace />} />
+          <Route path="utilidad" element={<UtilidaPage />} />
+          <Route path="ventasTotales" element={<VentasTotalesPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+export default App;
