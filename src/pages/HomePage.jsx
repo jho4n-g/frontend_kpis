@@ -12,7 +12,7 @@ import BusinessIcon from '@mui/icons-material/Business';
 import GroupIcon from '@mui/icons-material/Group';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import DescriptionIcon from '@mui/icons-material/Description';
-import HistoryIcon from '@mui/icons-material/History';
+import MonetizationOn from '@mui/icons-material/MonetizationOn';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
@@ -161,11 +161,14 @@ export default function HomePage({ window }) {
       icon: <SecurityIcon />,
     },
     {
-      segment: '#',
-      title: 'Logs',
-      icon: <HistoryIcon />,
+      title: 'Ingreso por venta totales',
+      icon: <MonetizationOn />,
       children: [
-        { segment: '#', title: 'Login', icon: <DescriptionIcon /> },
+        {
+          segment: 'ingresoVentasTotales',
+          title: 'Login',
+          icon: <DescriptionIcon />,
+        },
         { segment: 'acciones', title: 'Acciones', icon: <DescriptionIcon /> },
       ],
     },

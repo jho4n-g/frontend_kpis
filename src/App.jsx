@@ -2,7 +2,8 @@ import { Routes, BrowserRouter, Route, Navigate } from 'react-router';
 import HomePage from './pages/HomePage';
 import UtilidaPage from './pages/UtilidadPage';
 import VentasTotalesPage from './pages/VentasTotalesPage';
-//import SidebarLayout from './pages/SidebarLayout';
+import IngresoVentasTotales from './pages/IngresoVentasTotales';
+
 function App() {
   return (
     <BrowserRouter>
@@ -11,6 +12,10 @@ function App() {
           <Route index element={<Navigate to="/utilidad" replace />} />
           <Route path="utilidad" element={<UtilidaPage />} />
           <Route path="ventasTotales" element={<VentasTotalesPage />} />
+          <Route
+            path="ingresoVentasTotales"
+            element={<IngresoVentasTotales />}
+          />
         </Route>
       </Routes>
     </BrowserRouter>

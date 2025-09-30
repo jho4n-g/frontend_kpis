@@ -23,13 +23,13 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { LinearProgress } from '@mui/material';
 
-import { getAllUtilities, createUtilities } from '../service/utilidad.services';
 import {
   formatMonthYear,
   formatPercent,
   formatNumber,
 } from '../lib/convert.js';
 
+import { getAllUtilities, createUtilities } from '../service/utilidad.services';
 import UtilityUpsertModal from '../components/UtilidadPage/EditModalUtilidad.jsx';
 // -------- columnas (segunda fila de header) --------
 const columns = [
@@ -194,8 +194,16 @@ export default function UtilidadesTable() {
       {/* Toolbar con buscador */}
       <Toolbar sx={{ gap: 2, flexWrap: 'wrap', position: 'relative' }}>
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
-          Utilidades
+          UTILIDADES GESTION 2025-2026
         </Typography>
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddCircleOutlineIcon />}
+          onClick={() => handleRegister()}
+        >
+          Registrar
+        </Button>
 
         <Box sx={{ width: { xs: '100%', sm: 320 } }}>
           <TextField
@@ -291,13 +299,6 @@ export default function UtilidadesTable() {
               >
                 Cumplimiento (%)
               </TableCell>
-              <TableCell
-                align="center"
-                colSpan={1}
-                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
-              >
-                Acciones
-              </TableCell>
             </TableRow>
 
             {/* Fila 2: columnas */}
@@ -312,13 +313,6 @@ export default function UtilidadesTable() {
                   {col.label}
                 </TableCell>
               ))}
-              <TableCell
-                sx={{ top: 56, position: 'sticky', zIndex: 3 }}
-                align="center"
-                style={{ minWidth: 160 }}
-              >
-                Acciones
-              </TableCell>
             </TableRow>
           </TableHead>
 
@@ -338,16 +332,6 @@ export default function UtilidadesTable() {
                     </TableCell>
                   );
                 })}
-                <TableCell align="center">
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<AddCircleOutlineIcon />}
-                    onClick={() => handleRegister(row)}
-                  >
-                    Registrar
-                  </Button>
-                </TableCell>
               </TableRow>
             ))}
             {/* Estado vacío cuando no hay filas */}
