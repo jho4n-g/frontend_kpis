@@ -166,10 +166,14 @@ export default function HomePage({ window }) {
       children: [
         {
           segment: 'ingresoVentasTotales',
-          title: 'Login',
+          title: 'Retistro',
           icon: <DescriptionIcon />,
         },
-        { segment: 'acciones', title: 'Acciones', icon: <DescriptionIcon /> },
+        {
+          segment: 'acciones',
+          title: 'Estadistica',
+          icon: <DescriptionIcon />,
+        },
       ],
     },
     { segment: '#', title: 'Responsables', icon: <AssignmentIcon /> },
