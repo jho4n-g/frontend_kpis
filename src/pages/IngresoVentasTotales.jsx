@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Paper,
@@ -16,14 +16,26 @@ import {
   TablePagination,
   TableRow,
   CircularProgress,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import { LinearProgress } from '@mui/material';
-import { getAll } from '../service/IngresoVentaTotal.js';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+
+import {
+  getAll,
+  CreateObje,
+  UpdateObje,
+} from '../service/IngresoVentaTotal.js';
+
 import IngresoVentaTotalModal from '../components/IngresoVentaTotal/IngresoVentaTotalModal.jsx';
+import IngresoTotalECharts from '../components/graficos/IngresoTotalECharts.jsx';
 
 import {
   formatMonthYear,
@@ -31,8 +43,9 @@ import {
   formatNumber,
 } from '../lib/convert.js';
 
-import { CreateObje } from '../service/IngresoVentaTotal.js';
+import { getPeriodo } from '../service/libs.js';
 
+// Definición de columnas para la tabla (datos)
 const columns = [
   { id: 'periodo', label: 'Periodo', minWidth: 80, format: formatMonthYear },
   {
@@ -51,7 +64,7 @@ const columns = [
   },
   {
     id: 'venMenCer',
-    label: 'Venta Men. Ceramica',
+    label: 'Venta Men. Cerámica',
     minWidth: 130,
     align: 'right',
     format: formatNumber,
@@ -72,7 +85,7 @@ const columns = [
   },
   {
     id: 'venAcuCer',
-    label: 'Venta Acum. Ceramica',
+    label: 'Venta Acum. Cerámica',
     minWidth: 130,
     align: 'right',
     format: formatNumber,
@@ -86,14 +99,14 @@ const columns = [
   },
   {
     id: 'diffVe_OtrosvsPres',
-    label: 'Diff Ventas otros Presupusto',
+    label: 'Diff Ventas otros vs Presupuesto',
     minWidth: 110,
     align: 'right',
     format: formatNumber,
   },
   {
     id: 'diffVen_CervsPres',
-    label: 'Diferencia entre venta ceramica vs presupuesto',
+    label: 'Diff Venta cerámica vs Presupuesto',
     minWidth: 110,
     align: 'right',
     format: formatNumber,
@@ -107,14 +120,14 @@ const columns = [
   },
   {
     id: 'cumplMenCeramica',
-    label: 'Cumpl. Mensual Ceramica',
+    label: 'Cumpl. Mensual Cerámica',
     minWidth: 110,
     align: 'right',
     format: formatPercent,
   },
   {
     id: 'cumplOtrosIngrAcuvsAcumPres',
-    label: 'Cumpl. otros ingresos Acum. vs Acum. Presupuesto',
+    label: 'Cumpl. Otros Ingresos Acum. vs Acum. Presupuesto',
     minWidth: 110,
     align: 'right',
     format: formatPercent,
@@ -125,72 +138,55 @@ export default function IngresoVentasTotales() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [loading, setLoading] = useState(true);
-  const [row, setRow] = useState(null);
 
-  const [reloading, setReloading] = useState(false); // fetchs posteriores
+  const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
   const [error, setError] = useState(null);
 
-  //abrir modal
-  const [openModal, setOpenModal] = useState(true);
+  const [rows, setRows] = useState([]); // normalizados para la tabla
+  const [valorsTabla, setValoresTabla] = useState([]); // datos para gráficos
 
+  // modal crear/editar
+  const [openModal, setOpenModal] = useState(false);
+  const [periodoActual, setPeriodoActual] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null); // null = crear, objeto = editar
+
+  //
+
+  // Carga de datos (unificada)
   const loadUtilities = async (isReload = false) => {
     isReload ? setReloading(true) : setLoading(true);
     setError(null);
     try {
       const resp = await getAll();
-      console.log(resp);
-      const list = Array.isArray(resp?.data)
-        ? resp.data
-        : Array.isArray(resp)
-          ? resp
-          : [];
-      setRow(list);
+      const normalizados = resp?.normalizados ?? [];
+      const valores = resp?.valores ?? [];
+      setRows(normalizados);
+      setValoresTabla(valores);
     } catch (err) {
       console.error(err);
       setError('No se pudo cargar la lista');
-      setRow([]);
+      setRows([]);
+      setValoresTabla([]);
     } finally {
       isReload ? setReloading(false) : setLoading(false);
     }
   };
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const resp = await getAll();
-        if (!active) return;
-        const list = Array.isArray(resp?.data)
-          ? resp.data
-          : Array.isArray(resp)
-            ? resp
-            : [];
-        setRow(list);
-      } catch (err) {
-        console.log(err);
-        if (active) setError('No se pudo cargar la lista');
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+    loadUtilities(false);
   }, []);
 
-  useEffect(() => {
-    loadUtilities();
-  }, []);
-
+  // Normaliza strings para búsqueda (quita acentos, pasa a minúsculas)
   const normalize = (s) =>
     String(s ?? '')
       .normalize('NFD')
       .replace(/\p{Diacritic}/gu, '')
       .toLowerCase();
 
+  // Filtrado de filas por query
   const filtered = useMemo(() => {
-    const data = Array.isArray(row) ? row : [];
+    const data = Array.isArray(rows) ? rows : [];
     const nq = normalize(query.trim());
     if (!nq) return data;
 
@@ -202,39 +198,58 @@ export default function IngresoVentasTotales() {
         return raw.includes(nq) || formatted.includes(nq);
       })
     );
-  }, [query, row]);
+  }, [query, rows]);
+
+  // Si cambia el tamaño del filtro, resetea la página
+  useEffect(() => {
+    setPage(0);
+  }, [filtered.length]);
 
   const start = page * rowsPerPage;
-
   const sliced = useMemo(
     () => filtered.slice(start, start + rowsPerPage),
     [filtered, start, rowsPerPage]
   );
 
-  const handleRegister = () => {
+  // Abrir modal para crear
+  const handleRegistrar = async () => {
+    try {
+      setSelectedRow(null); // crear
+      setOpenModal(true);
+      const per = await getPeriodo(); // 'YYYY-MM-01' o { periodo: '...' }
+      const p =
+        typeof per === 'string'
+          ? per
+          : typeof per?.periodo === 'string'
+            ? per.periodo
+            : null;
+      setPeriodoActual(p);
+    } catch (err) {
+      console.log(err);
+      setPeriodoActual(null);
+    }
+  };
+
+  // Abrir modal para editar
+  const handleEditar = (row) => {
+    // console.log('edit row', { id: row?.id, periodo: row?.periodo });
+    setSelectedRow(row); // modo edición
     setOpenModal(true);
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', position: 'relative' }}>
-      {/* Toolbar con buscador */}
       <Toolbar sx={{ gap: 2, flexWrap: 'wrap', position: 'relative' }}>
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
-          UTILIDADES GESTION 2025-2026
+          UTILIDADES GESTIÓN 2025-2026
         </Typography>
+
         <Button
           size="small"
           variant="contained"
           startIcon={<AddCircleOutlineIcon />}
-          onClick={() => handleRegister()}
+          onClick={handleRegistrar}
+          disabled={loading || reloading}
         >
           Registrar
         </Button>
@@ -270,16 +285,15 @@ export default function IngresoVentasTotales() {
           />
         </Box>
 
-        {reloading && (
+        {(reloading || loading) && (
           <LinearProgress
             sx={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
           />
         )}
       </Toolbar>
-      {/* Mensaje de error (si hubo) */}
+
       {error && <Box sx={{ px: 2, py: 1, color: 'error.main' }}>{error}</Box>}
 
-      {/* Tabla sticky con header agrupado + líneas sutiles */}
       <TableContainer sx={{ width: '100%' }}>
         <Table
           stickyHeader
@@ -288,22 +302,16 @@ export default function IngresoVentasTotales() {
             minWidth: 900,
             borderCollapse: 'separate',
             borderSpacing: 0,
-            '& th, & td': {
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-            },
+            '& th, & td': { borderBottom: '1px solid', borderColor: 'divider' },
             '& th:not(:last-of-type), & td:not(:last-of-type)': {
               borderRight: '1px solid',
               borderColor: 'divider',
             },
-            '& thead th': {
-              fontWeight: 600,
-              bgcolor: 'background.paper',
-            },
+            '& thead th': { fontWeight: 600, bgcolor: 'background.paper' },
           }}
         >
           <TableHead>
-            {/* Fila 1: grupos */}
+            {/* Fila 1: grupos (sumar 1 colSpan para Acciones) */}
             <TableRow>
               <TableCell
                 align="center"
@@ -314,7 +322,7 @@ export default function IngresoVentasTotales() {
               </TableCell>
               <TableCell
                 align="center"
-                colSpan={2}
+                colSpan={4}
                 sx={{ top: 0, position: 'sticky', zIndex: 3 }}
               >
                 Metas mensuales
@@ -331,11 +339,25 @@ export default function IngresoVentasTotales() {
                 colSpan={2}
                 sx={{ top: 0, position: 'sticky', zIndex: 3 }}
               >
+                Diferencias
+              </TableCell>
+              <TableCell
+                align="center"
+                colSpan={3}
+                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
+              >
                 Cumplimiento (%)
+              </TableCell>
+              <TableCell
+                align="center"
+                colSpan={1}
+                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
+              >
+                Acciones
               </TableCell>
             </TableRow>
 
-            {/* Fila 2: columnas */}
+            {/* Fila 2: encabezados de columnas + Acciones */}
             <TableRow>
               {columns.map((col) => (
                 <TableCell
@@ -347,40 +369,53 @@ export default function IngresoVentasTotales() {
                   {col.label}
                 </TableCell>
               ))}
+              <TableCell
+                align="center"
+                sx={{ top: 56, position: 'sticky', zIndex: 3, minWidth: 120 }}
+              >
+                Acciones
+              </TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {sliced.map((row, idx) => (
+            {sliced.map((r, idx) => (
               <TableRow
                 hover
                 role="checkbox"
                 tabIndex={-1}
-                key={`${row.periodo}-${idx}`}
+                key={r?.id ?? `${r?.periodo ?? 'row'}-${idx}`}
               >
                 {columns.map((col) => {
-                  const val = row[col.id];
+                  const val = r?.[col.id];
                   return (
                     <TableCell key={col.id} align={col.align}>
                       {col.format ? col.format(val) : val}
                     </TableCell>
                   );
                 })}
+
+                {/* Celda de acciones */}
+                <TableCell align="center">
+                  <Button
+                    size="small"
+                    startIcon={<EditIcon />}
+                    onClick={() => handleEditar(r)}
+                    sx={{ mr: 1 }}
+                  >
+                    Editar
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
-            {/* Estado vacío cuando no hay filas */}
-            {!error && filtered.length === 0 && (
-              <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-                {query
-                  ? 'Sin resultados para tu búsqueda.'
-                  : 'No hay utilidades registradas.'}
-              </Box>
-            )}
 
-            {sliced.length === 0 && (
+            {/* Estado vacío */}
+            {!error && filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={columns.length + 1} align="center">
-                  Sin resultados
+                  {query
+                    ? 'Sin resultados para tu búsqueda.'
+                    : 'No hay utilidades registradas.'}
                 </TableCell>
               </TableRow>
             )}
@@ -388,7 +423,6 @@ export default function IngresoVentasTotales() {
         </Table>
       </TableContainer>
 
-      {/* paginación */}
       <TablePagination
         component="div"
         count={filtered.length}
@@ -402,13 +436,21 @@ export default function IngresoVentasTotales() {
         }}
       />
 
+      {/* Modal de registro / edición */}
       <IngresoVentaTotalModal
         open={openModal}
-        periodoAcutal="2025-05-01"
         onClose={() => setOpenModal(false)}
-        createFn={CreateObje}
-        onSuccess={() => loadUtilities(true)}
+        onSuccess={() => loadUtilities(true)} // recarga tabla
+        initialValues={selectedRow} // null → crear, objeto → editar
+        periodoActual={periodoActual} // usado solo en crear
+        createFn={CreateObje} // POST
+        updateFn={UpdateObje} // PUT/PATCH
+        editablePeriodo={false} // true si quieres que se pueda cambiar el mes
+        idKey="id"
       />
+
+      {/* Gráfico (usa los valores ya preparados en el backend) */}
+      <IngresoTotalECharts rows={valorsTabla} />
     </Paper>
   );
 }
