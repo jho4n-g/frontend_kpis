@@ -3,6 +3,8 @@ import HomePage from './pages/HomePage';
 import UtilidaPage from './pages/UtilidadPage';
 import VentasTotalesPage from './pages/VentasTotalesPage';
 import IngresoVentasTotales from './pages/IngresoVentasTotales';
+import Ingreso from './copy/IngresoVentasTotales';
+import VentasTotales from './pages/VentasTotalesPage';
 
 function App() {
   return (
@@ -16,6 +18,7 @@ function App() {
             path="ingresoVentasTotales"
             element={<IngresoVentasTotales />}
           />
+          <Route path="ingreso" element={<Ingreso />} />
         </Route>
       </Routes>
     </BrowserRouter>

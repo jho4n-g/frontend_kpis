@@ -45,6 +45,7 @@ export const formatPercent = (
 };
 
 export const formatNumber = (value) => {
+  //const value = Math.abs(obj);
   if (value === undefined || value === null) return '';
   const s = String(value).replace(/\s/g, '');
 

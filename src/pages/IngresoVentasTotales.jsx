@@ -17,35 +17,31 @@ import {
   TableRow,
   CircularProgress,
   LinearProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Stack,
 } from '@mui/material';
+
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import {
   getAll,
   CreateObje,
   UpdateObje,
 } from '../service/IngresoVentaTotal.js';
-
 import IngresoVentaTotalModal from '../components/IngresoVentaTotal/IngresoVentaTotalModal.jsx';
 import IngresoTotalECharts from '../components/graficos/IngresoTotalECharts.jsx';
+import CumplimientoECharts from '../components/graficos/CumplimientoECharts.jsx';
 
 import {
   formatMonthYear,
   formatPercent,
   formatNumber,
 } from '../lib/convert.js';
-
 import { getPeriodo } from '../service/libs.js';
 
-// Definición de columnas para la tabla (datos)
+// Columnas de la tabla
 const columns = [
   { id: 'periodo', label: 'Periodo', minWidth: 80, format: formatMonthYear },
   {
@@ -137,23 +133,22 @@ const columns = [
 export default function IngresoVentasTotales() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(10); // arranca en 5
 
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [rows, setRows] = useState([]); // normalizados para la tabla
-  const [valorsTabla, setValoresTabla] = useState([]); // datos para gráficos
+  const [rows, setRows] = useState([]); // normalizados para tabla
+  const [valorsTabla, setValoresTabla] = useState([]); // datos para gráfico
+  const [valoresCump, setValoresCump] = useState([]);
 
   // modal crear/editar
   const [openModal, setOpenModal] = useState(false);
   const [periodoActual, setPeriodoActual] = useState(null);
-  const [selectedRow, setSelectedRow] = useState(null); // null = crear, objeto = editar
+  const [selectedRow, setSelectedRow] = useState(null); // null = crear
 
-  //
-
-  // Carga de datos (unificada)
+  // Cargar datos
   const loadUtilities = async (isReload = false) => {
     isReload ? setReloading(true) : setLoading(true);
     setError(null);
@@ -161,6 +156,9 @@ export default function IngresoVentasTotales() {
       const resp = await getAll();
       const normalizados = resp?.normalizados ?? [];
       const valores = resp?.valores ?? [];
+      const ValCum = resp?.graficaCumplimiento ?? [];
+      console.log(ValCum);
+      setValoresCump(ValCum);
       setRows(normalizados);
       setValoresTabla(valores);
     } catch (err) {
@@ -177,19 +175,17 @@ export default function IngresoVentasTotales() {
     loadUtilities(false);
   }, []);
 
-  // Normaliza strings para búsqueda (quita acentos, pasa a minúsculas)
+  // Buscar
   const normalize = (s) =>
     String(s ?? '')
       .normalize('NFD')
       .replace(/\p{Diacritic}/gu, '')
       .toLowerCase();
 
-  // Filtrado de filas por query
   const filtered = useMemo(() => {
     const data = Array.isArray(rows) ? rows : [];
     const nq = normalize(query.trim());
     if (!nq) return data;
-
     return data.filter((r) =>
       columns.some((c) => {
         const v = r?.[c.id];
@@ -200,7 +196,6 @@ export default function IngresoVentasTotales() {
     );
   }, [query, rows]);
 
-  // Si cambia el tamaño del filtro, resetea la página
   useEffect(() => {
     setPage(0);
   }, [filtered.length]);
@@ -211,12 +206,12 @@ export default function IngresoVentasTotales() {
     [filtered, start, rowsPerPage]
   );
 
-  // Abrir modal para crear
+  // Abrir modal - Crear
   const handleRegistrar = async () => {
     try {
-      setSelectedRow(null); // crear
+      setSelectedRow(null);
       setOpenModal(true);
-      const per = await getPeriodo(); // 'YYYY-MM-01' o { periodo: '...' }
+      const per = await getPeriodo();
       const p =
         typeof per === 'string'
           ? per
@@ -230,227 +225,291 @@ export default function IngresoVentasTotales() {
     }
   };
 
-  // Abrir modal para editar
+  // Abrir modal - Editar
   const handleEditar = (row) => {
-    // console.log('edit row', { id: row?.id, periodo: row?.periodo });
-    setSelectedRow(row); // modo edición
+    setSelectedRow(row);
     setOpenModal(true);
   };
 
+  const HEADER_ROW1 = 40; // si usas size="medium", usa 56
+
+  // Estilos sticky
+  const sxStickyBase = {
+    position: 'sticky',
+    bgcolor: 'background.paper',
+    zIndex: 3,
+  };
+  const sxHeadTop1 = { top: 0, height: HEADER_ROW1, ...sxStickyBase };
+  const sxHeadTop2 = { top: HEADER_ROW1, ...sxStickyBase };
+  const sxLeftStickyHead = {
+    ...sxStickyBase,
+    left: 0,
+    boxShadow: (t) => `2px 0 0 ${t.palette.divider} inset`,
+    zIndex: 4,
+  };
+  const sxRightStickyHead = {
+    ...sxStickyBase,
+    right: 0,
+    boxShadow: (t) => `-2px 0 0 ${t.palette.divider} inset`,
+    zIndex: 4,
+  };
+  const sxLeftStickyCell = {
+    position: 'sticky',
+    left: 0,
+    bgcolor: 'background.paper',
+    boxShadow: (t) => `2px 0 0 ${t.palette.divider} inset`,
+    zIndex: 1,
+  };
+  const sxRightStickyCell = {
+    position: 'sticky',
+    right: 0,
+    bgcolor: 'background.paper',
+    boxShadow: (t) => `-2px 0 0 ${t.palette.divider} inset`,
+    zIndex: 1,
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', position: 'relative' }}>
-      <Toolbar sx={{ gap: 2, flexWrap: 'wrap', position: 'relative' }}>
-        <Typography variant="h6" sx={{ flexGrow: 1 }}>
-          UTILIDADES GESTIÓN 2025-2026
-        </Typography>
+      <Stack spacing={3}>
+        <Paper>
+          <Toolbar sx={{ gap: 2, flexWrap: 'wrap', position: 'relative' }}>
+            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+              INGRESO POR VENTA TOTALES
+            </Typography>
 
-        <Button
-          size="small"
-          variant="contained"
-          startIcon={<AddCircleOutlineIcon />}
-          onClick={handleRegistrar}
-          disabled={loading || reloading}
-        >
-          Registrar
-        </Button>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<AddCircleOutlineIcon />}
+              onClick={handleRegistrar}
+              disabled={loading || reloading}
+            >
+              Registrar
+            </Button>
 
-        <Box sx={{ width: { xs: '100%', sm: 320 } }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Buscar…"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
+            <Box sx={{ width: { xs: '100%', sm: 320 } }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Buscar…"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(0);
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                  endAdornment: query ? (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={() => setQuery('')}
+                        aria-label="Limpiar búsqueda"
+                      >
+                        <ClearIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
+                }}
+              />
+            </Box>
+
+            {(reloading || loading) && (
+              <LinearProgress
+                sx={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
+              />
+            )}
+          </Toolbar>
+
+          {error && (
+            <Box sx={{ px: 2, py: 1, color: 'error.main' }}>{error}</Box>
+          )}
+
+          <TableContainer
+            sx={{ width: '100%', maxHeight: 560, overflow: 'auto' }}
+          >
+            <Table
+              stickyHeader
+              size="small"
+              aria-label="tabla utilidades"
+              sx={{
+                minWidth: 900,
+                borderCollapse: 'separate',
+                borderSpacing: 0,
+                '& th, & td': {
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  whiteSpace: 'nowrap',
+                  fontVariantNumeric: 'tabular-nums',
+                },
+                '& th:not(:last-of-type), & td:not(:last-of-type)': {
+                  borderRight: '1px solid',
+                  borderColor: 'divider',
+                },
+                '& thead th': { fontWeight: 600, bgcolor: 'background.paper' },
+              }}
+            >
+              <TableHead>
+                {/* Fila 1: grupos */}
+                <TableRow>
+                  <TableCell
+                    sx={{ ...sxHeadTop1, ...sxLeftStickyHead, py: 0.5 }}
+                  >
+                    Periodo
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={4}
+                    sx={{ ...sxHeadTop1, py: 0.5 }}
+                  >
+                    Ingresos mensuales
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={3}
+                    sx={{ ...sxHeadTop1, py: 0.5 }}
+                  >
+                    Acumulado
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={2}
+                    sx={{ ...sxHeadTop1, py: 0.5 }}
+                  >
+                    Diferencias
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={3}
+                    sx={{ ...sxHeadTop1, py: 0.5 }}
+                  >
+                    Cumplimiento (%)
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={1}
+                    sx={{ ...sxHeadTop1, ...sxRightStickyHead }}
+                  >
+                    Acciones
+                  </TableCell>
+                </TableRow>
+
+                {/* Fila 2: encabezados reales */}
+                <TableRow>
+                  {columns.map((col, idx) => (
+                    <TableCell
+                      key={col.id}
+                      align={col.align}
+                      style={{ minWidth: col.minWidth }}
+                      sx={{
+                        ...sxHeadTop2,
+                        ...(idx === 0 ? sxLeftStickyHead : {}),
+                      }}
+                    >
+                      {col.label}
+                    </TableCell>
+                  ))}
+                  <TableCell
+                    align="center"
+                    sx={{ ...sxHeadTop2, ...sxRightStickyHead, minWidth: 120 }}
+                  >
+                    Acciones
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {sliced.map((r, idx) => (
+                  <TableRow
+                    hover
+                    role="checkbox"
+                    tabIndex={-1}
+                    key={r?.id ?? `${r?.periodo ?? 'row'}-${idx}`}
+                  >
+                    {columns.map((col, cIdx) => {
+                      const val = r?.[col.id];
+                      return (
+                        <TableCell
+                          key={col.id}
+                          align={col.align}
+                          sx={cIdx === 0 ? sxLeftStickyCell : undefined}
+                        >
+                          {col.format ? col.format(val) : val}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell align="center" sx={sxRightStickyCell}>
+                      <Button
+                        size="small"
+                        startIcon={<EditIcon />}
+                        onClick={() => handleEditar(r)}
+                        sx={{ mr: 1 }}
+                      >
+                        Editar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                {!error && filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={columns.length + 1} align="center">
+                      {query
+                        ? 'Sin resultados para tu búsqueda.'
+                        : 'No hay utilidades registradas.'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_e, p) => setPage(p)}
+            rowsPerPage={rowsPerPage}
+            rowsPerPageOptions={[10, 12]}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(+e.target.value);
               setPage(0);
             }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-              endAdornment: query ? (
-                <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    onClick={() => setQuery('')}
-                    aria-label="Limpiar búsqueda"
-                  >
-                    <ClearIcon />
-                  </IconButton>
-                </InputAdornment>
-              ) : null,
-            }}
           />
-        </Box>
 
-        {(reloading || loading) && (
-          <LinearProgress
-            sx={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
+          {/* Modal crear/editar */}
+          <IngresoVentaTotalModal
+            open={openModal}
+            onClose={() => setOpenModal(false)}
+            onSuccess={() => loadUtilities(true)}
+            initialValues={selectedRow}
+            periodoActual={periodoActual}
+            createFn={CreateObje}
+            updateFn={UpdateObje}
+            editablePeriodo={false}
+            idKey="id"
           />
-        )}
-      </Toolbar>
-
-      {error && <Box sx={{ px: 2, py: 1, color: 'error.main' }}>{error}</Box>}
-
-      <TableContainer sx={{ width: '100%' }}>
-        <Table
-          stickyHeader
-          aria-label="tabla utilidades"
-          sx={{
-            minWidth: 900,
-            borderCollapse: 'separate',
-            borderSpacing: 0,
-            '& th, & td': { borderBottom: '1px solid', borderColor: 'divider' },
-            '& th:not(:last-of-type), & td:not(:last-of-type)': {
-              borderRight: '1px solid',
-              borderColor: 'divider',
-            },
-            '& thead th': { fontWeight: 600, bgcolor: 'background.paper' },
-          }}
-        >
-          <TableHead>
-            {/* Fila 1: grupos (sumar 1 colSpan para Acciones) */}
-            <TableRow>
-              <TableCell
-                align="center"
-                colSpan={1}
-                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
-              >
-                Periodo
-              </TableCell>
-              <TableCell
-                align="center"
-                colSpan={4}
-                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
-              >
-                Metas mensuales
-              </TableCell>
-              <TableCell
-                align="center"
-                colSpan={3}
-                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
-              >
-                Acumulado
-              </TableCell>
-              <TableCell
-                align="center"
-                colSpan={2}
-                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
-              >
-                Diferencias
-              </TableCell>
-              <TableCell
-                align="center"
-                colSpan={3}
-                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
-              >
-                Cumplimiento (%)
-              </TableCell>
-              <TableCell
-                align="center"
-                colSpan={1}
-                sx={{ top: 0, position: 'sticky', zIndex: 3 }}
-              >
-                Acciones
-              </TableCell>
-            </TableRow>
-
-            {/* Fila 2: encabezados de columnas + Acciones */}
-            <TableRow>
-              {columns.map((col) => (
-                <TableCell
-                  key={col.id}
-                  align={col.align}
-                  style={{ minWidth: col.minWidth }}
-                  sx={{ top: 56, position: 'sticky', zIndex: 3 }}
-                >
-                  {col.label}
-                </TableCell>
-              ))}
-              <TableCell
-                align="center"
-                sx={{ top: 56, position: 'sticky', zIndex: 3, minWidth: 120 }}
-              >
-                Acciones
-              </TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {sliced.map((r, idx) => (
-              <TableRow
-                hover
-                role="checkbox"
-                tabIndex={-1}
-                key={r?.id ?? `${r?.periodo ?? 'row'}-${idx}`}
-              >
-                {columns.map((col) => {
-                  const val = r?.[col.id];
-                  return (
-                    <TableCell key={col.id} align={col.align}>
-                      {col.format ? col.format(val) : val}
-                    </TableCell>
-                  );
-                })}
-
-                {/* Celda de acciones */}
-                <TableCell align="center">
-                  <Button
-                    size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleEditar(r)}
-                    sx={{ mr: 1 }}
-                  >
-                    Editar
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-
-            {/* Estado vacío */}
-            {!error && filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={columns.length + 1} align="center">
-                  {query
-                    ? 'Sin resultados para tu búsqueda.'
-                    : 'No hay utilidades registradas.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <TablePagination
-        component="div"
-        count={filtered.length}
-        page={page}
-        onPageChange={(_e, p) => setPage(p)}
-        rowsPerPage={rowsPerPage}
-        rowsPerPageOptions={[10, 25, 100]}
-        onRowsPerPageChange={(e) => {
-          setRowsPerPage(+e.target.value);
-          setPage(0);
-        }}
-      />
-
-      {/* Modal de registro / edición */}
-      <IngresoVentaTotalModal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        onSuccess={() => loadUtilities(true)} // recarga tabla
-        initialValues={selectedRow} // null → crear, objeto → editar
-        periodoActual={periodoActual} // usado solo en crear
-        createFn={CreateObje} // POST
-        updateFn={UpdateObje} // PUT/PATCH
-        editablePeriodo={false} // true si quieres que se pueda cambiar el mes
-        idKey="id"
-      />
-
-      {/* Gráfico (usa los valores ya preparados en el backend) */}
-      <IngresoTotalECharts rows={valorsTabla} />
+        </Paper>{' '}
+        {/* deja 24px entre hijos por defecto */}
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+          <IngresoTotalECharts rows={valorsTabla} />
+        </Paper>
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+          <CumplimientoECharts rows={valoresCump} metaDefault={90} />
+        </Paper>
+      </Stack>
     </Paper>
   );
 }
