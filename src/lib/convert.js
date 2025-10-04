@@ -1,17 +1,30 @@
-export const formatMonthYear = (v) => {
-  if (!v) return '-';
-  const d = new Date(v);
-  if (isNaN(d)) return String(v);
+export const formatMonthYear = (value) => {
+  // Validación más explícita
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
 
-  // Mes en español (en minúsculas por defecto)
-  const month = new Intl.DateTimeFormat('es-ES', {
-    month: 'long',
-    timeZone: 'UTC', // evita corrimientos por zona horaria
-  }).format(d);
+  const date = new Date(value);
 
-  const year = d.getUTCFullYear();
-  // Capitaliza el mes y quita el "de"
-  return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${year}`;
+  // Validación más robusta de fecha
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  try {
+    const month = new Intl.DateTimeFormat('es-ES', {
+      month: 'long',
+      timeZone: 'UTC',
+    }).format(date);
+
+    const year = date.getUTCFullYear();
+
+    return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${year}`;
+  } catch (error) {
+    // Fallback seguro
+    console.warn('Error formatting date:', error);
+    return String(value);
+  }
 };
 
 const toNum = (v) => (typeof v === 'string' ? Number(v) : v);

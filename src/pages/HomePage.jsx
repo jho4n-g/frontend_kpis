@@ -15,6 +15,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import MonetizationOn from '@mui/icons-material/MonetizationOn';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LightModeIcon from '@mui/icons-material/LightMode';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { AppProvider } from '@toolpad/core/AppProvider';
 import { DashboardLayout } from '@toolpad/core/DashboardLayout';
@@ -176,10 +177,14 @@ export default function HomePage({ window }) {
         },
       ],
     },
-    { segment: '#', title: 'Responsables', icon: <AssignmentIcon /> },
-    { segment: '#', title: 'Documentos', icon: <DescriptionIcon /> },
-    { segment: '#', title: 'Socios', icon: <GroupIcon /> },
-    { segment: '#', title: 'Sucursales', icon: <BusinessIcon /> },
+    {
+      segment: 'precioUnitario',
+      title: 'Precio Unitario',
+      icon: <LocalOfferIcon />,
+    },
+    { segment: '#1', title: 'Documentos', icon: <DescriptionIcon /> },
+    { segment: '#2', title: 'Socios', icon: <GroupIcon /> },
+    { segment: '#3', title: 'Sucursales', icon: <BusinessIcon /> },
   ];
 
   // AppBar actions: botón para cambiar el modo

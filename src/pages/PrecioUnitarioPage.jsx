@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { use, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Paper,
@@ -18,155 +18,101 @@ import {
   CircularProgress,
   LinearProgress,
   Stack,
-  Menu,
-  Divider,
-  FormGroup,
-  FormControlLabel,
-  Checkbox,
-  Tooltip,
 } from '@mui/material';
 
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditIcon from '@mui/icons-material/Edit';
-import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 
 import {
   getAll,
-  CreateObje,
-  UpdateObje,
-} from '../service/IngresoVentaTotal.js';
-import IngresoVentaTotalModal from '../components/IngresoVentaTotal/IngresoVentaTotalModal.jsx';
-import IngresoTotalECharts from '../components/graficos/IngresoTotalECharts.jsx';
-import CumplimientoECharts from '../components/graficos/CumplimientoECharts.jsx';
+  ObtenerPeriodo,
+  updatePrecioUnitario,
+  CreatePrecioUnitario,
+  UpdateMeta,
+} from '../service/precioUnitario.js';
+import PrecioUnitarioModal from '../components/PrecioUnitario/PrecioUnitarioModal.jsx';
+import PrecioUnitarioECharts from '../components/PrecioUnitario/PrecioUnitarioECharts.jsx';
 
 import {
   formatMonthYear,
   formatPercent,
   formatNumber,
 } from '../lib/convert.js';
-import { getPeriodo } from '../service/libs.js';
-
-// ------------------- Definición de columnas (ahora con "group") -------------------
-// Grupos para la fila superior del header
-const GROUPS = [
-  { id: 'mensuales', label: 'Ingresos mensuales' },
-  { id: 'acumulado', label: 'Acumulado' },
-  { id: 'diferencias', label: 'Diferencias' },
-  { id: 'cumpl', label: 'Cumplimiento (%)' },
-];
-
+import PrecioUnitarioMetaModal from '../components/CambiarMentaModal.jsx';
+// Columnas de la tabla
 const columns = [
+  { id: 'periodo', label: 'Periodo', minWidth: 80, format: formatMonthYear },
   {
-    id: 'periodo',
-    label: 'Periodo',
-    minWidth: 80,
-    format: formatMonthYear,
-    group: null,
-  },
-  {
-    id: 'PresMen',
+    id: 'presMen',
     label: 'Presupuesto Mensual',
     minWidth: 80,
     align: 'right',
     format: formatNumber,
-    group: 'mensuales',
   },
   {
-    id: 'VentMenOtrIng',
-    label: 'Venta Men. con otros Ingresos',
+    id: 'precProm',
+    label: 'Precio Promedio',
     minWidth: 130,
     align: 'right',
     format: formatNumber,
-    group: 'mensuales',
   },
   {
-    id: 'venMenCer',
-    label: 'Venta Men. Cerámica',
+    id: 'regionCentro',
+    label: 'Region Centro',
     minWidth: 130,
     align: 'right',
     format: formatNumber,
-    group: 'mensuales',
   },
   {
-    id: 'otrIngr',
-    label: 'Otros Ingresos',
+    id: 'regionEste',
+    label: 'Region Este',
     minWidth: 120,
     align: 'right',
     format: formatNumber,
-    group: 'mensuales',
   },
   {
-    id: 'venAcuOtros',
-    label: 'Venta Acumulado Otros',
+    id: 'regionOeste',
+    label: 'Region Oeste',
     minWidth: 140,
     align: 'right',
     format: formatNumber,
-    group: 'acumulado',
   },
   {
-    id: 'venAcuCer',
-    label: 'Venta Acum. Cerámica',
+    id: 'fabrica',
+    label: 'Fabrica',
     minWidth: 130,
     align: 'right',
     format: formatNumber,
-    group: 'acumulado',
   },
   {
-    id: 'acuPres',
-    label: 'Acum. Presupuesto',
+    id: 'exportacion',
+    label: 'Meta',
     minWidth: 110,
     align: 'right',
     format: formatNumber,
-    group: 'acumulado',
-  },
-  {
-    id: 'diffVe_OtrosvsPres',
-    label: 'Diff Ventas otros vs Presupuesto',
-    minWidth: 110,
-    align: 'right',
-    format: formatNumber,
-    group: 'diferencias',
-  },
-  {
-    id: 'diffVen_CervsPres',
-    label: 'Diff Venta cerámica vs Presupuesto',
-    minWidth: 110,
-    align: 'right',
-    format: formatNumber,
-    group: 'diferencias',
   },
   {
     id: 'meta',
-    label: 'Meta',
-    minWidth: 50,
-    align: 'right',
-    format: formatPercent,
-    group: 'cumpl',
-  },
-  {
-    id: 'cumplMenCeramica',
-    label: 'Cumpl. Mensual Cerámica',
+    label: 'Cumplimiento Mensual',
     minWidth: 110,
     align: 'right',
     format: formatPercent,
-    group: 'cumpl',
   },
   {
-    id: 'cumplOtrosIngrAcuvsAcumPres',
-    label: 'Cumpl. Otros Ingresos Acum. vs Acum. Presupuesto',
+    id: 'cumplimientoMensual',
+    label: 'Cumplimiento Acumulado',
     minWidth: 110,
     align: 'right',
     format: formatPercent,
-    group: 'cumpl',
   },
 ];
 
-export default function IngresoVentasTotales() {
+export default function PrecioUnitarioPage() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(10); // arranca en 5
 
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
@@ -174,85 +120,28 @@ export default function IngresoVentasTotales() {
 
   const [rows, setRows] = useState([]); // normalizados para tabla
   const [valorsTabla, setValoresTabla] = useState([]); // datos para gráfico
-  const [valoresCump, setValoresCump] = useState([]);
 
   // modal crear/editar
   const [openModal, setOpenModal] = useState(false);
   const [periodoActual, setPeriodoActual] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null); // null = crear
 
-  // ---------- Column Picker state ----------
-  const defaultVisible = useMemo(
-    () => Object.fromEntries(columns.map((c) => [c.id, true])),
-    []
-  );
-  const [visibleCols, setVisibleCols] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('ivt_visible_cols'));
-      if (saved && typeof saved === 'object')
-        return { ...defaultVisible, ...saved, periodo: true }; // periodo siempre visible
-    } catch {}
-    return { ...defaultVisible, periodo: true };
-  });
+  const [openMeta, setOpenMeta] = useState(false);
 
-  const persistVisible = (next) => {
-    localStorage.setItem('ivt_visible_cols', JSON.stringify(next));
-  };
-
-  const [anchorCols, setAnchorCols] = useState(null);
-  const openCols = Boolean(anchorCols);
-  const handleOpenCols = (e) => setAnchorCols(e.currentTarget);
-  const handleCloseCols = () => setAnchorCols(null);
-
-  const toggleCol = (id) => {
-    setVisibleCols((prev) => {
-      const next = { ...prev, [id]: !prev[id] };
-      if (id === 'periodo' && next[id] === false) next[id] = true; // forzar visible
-      persistVisible(next);
-      return next;
-    });
-  };
-
-  const setAllCols = (val) => {
-    const next = Object.fromEntries(
-      columns.map((c) => [c.id, c.id === 'periodo' ? true : val])
-    );
-    setVisibleCols(next);
-    persistVisible(next);
-  };
-
-  const resetCols = () => {
-    const next = { ...defaultVisible, periodo: true };
-    setVisibleCols(next);
-    persistVisible(next);
-  };
-
-  const vcols = useMemo(
-    () => columns.filter((c) => !!visibleCols[c.id]),
-    [visibleCols]
-  );
-
-  const groupCounts = useMemo(() => {
-    const counts = Object.fromEntries(GROUPS.map((g) => [g.id, 0]));
-    for (const c of columns) {
-      if (!c.group) continue;
-      if (visibleCols[c.id]) counts[c.group] = (counts[c.group] || 0) + 1;
-    }
-    return counts;
-  }, [visibleCols]);
-
-  // ------------------- Cargar datos -------------------
+  // Cargar datos
   const loadUtilities = async (isReload = false) => {
     isReload ? setReloading(true) : setLoading(true);
     setError(null);
     try {
       const resp = await getAll();
+      //console.log(resp);
       const normalizados = resp?.normalizados ?? [];
       const valores = resp?.valores ?? [];
       const ValCum = resp?.graficaCumplimiento ?? [];
-      setValoresCump(ValCum);
+      console.log('PrecioUnitario', normalizados);
       setRows(normalizados);
       setValoresTabla(valores);
+      //console.log('***********', ValCum);
     } catch (err) {
       console.error(err);
       setError('No se pudo cargar la lista');
@@ -267,7 +156,7 @@ export default function IngresoVentasTotales() {
     loadUtilities(false);
   }, []);
 
-  // ------------------- Buscar -------------------
+  // Buscar
   const normalize = (s) =>
     String(s ?? '')
       .normalize('NFD')
@@ -298,12 +187,16 @@ export default function IngresoVentasTotales() {
     [filtered, start, rowsPerPage]
   );
 
-  // ------------------- Modal handlers -------------------
+  const handleRegisterMeta = async () => {
+    setOpenMeta(true);
+  };
+
+  // Abrir modal - Crear
   const handleRegistrar = async () => {
     try {
       setSelectedRow(null);
       setOpenModal(true);
-      const per = await getPeriodo();
+      const per = await ObtenerPeriodo();
       const p =
         typeof per === 'string'
           ? per
@@ -317,14 +210,16 @@ export default function IngresoVentasTotales() {
     }
   };
 
+  // Abrir modal - Editar
   const handleEditar = (row) => {
     setSelectedRow(row);
+    console.log(row);
     setOpenModal(true);
   };
 
-  // ------------------- Estilos sticky -------------------
   const HEADER_ROW1 = 40; // si usas size="medium", usa 56
 
+  // Estilos sticky
   const sxStickyBase = {
     position: 'sticky',
     bgcolor: 'background.paper',
@@ -373,71 +268,8 @@ export default function IngresoVentasTotales() {
         <Paper>
           <Toolbar sx={{ gap: 2, flexWrap: 'wrap', position: 'relative' }}>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              INGRESO POR VENTA TOTALES
+              VENTAS TOTALES
             </Typography>
-
-            {/* Selector de columnas */}
-            <Tooltip title="Seleccionar columnas">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<ViewColumnIcon />}
-                onClick={handleOpenCols}
-                disabled={loading || reloading}
-              >
-                Columnas
-              </Button>
-            </Tooltip>
-            <Menu
-              anchorEl={anchorCols}
-              open={openCols}
-              onClose={handleCloseCols}
-            >
-              <Box sx={{ p: 1.5, width: 320 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                  Mostrar/ocultar columnas
-                </Typography>
-                <FormGroup>
-                  {columns.map((c) => (
-                    <FormControlLabel
-                      key={c.id}
-                      control={
-                        <Checkbox
-                          size="small"
-                          checked={!!visibleCols[c.id]}
-                          onChange={() => toggleCol(c.id)}
-                          disabled={c.id === 'periodo'}
-                        />
-                      }
-                      label={c.label}
-                    />
-                  ))}
-                </FormGroup>
-                <Divider sx={{ my: 1 }} />
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent="space-between"
-                >
-                  <Button size="small" onClick={() => setAllCols(true)}>
-                    Todas
-                  </Button>
-                  <Button size="small" onClick={() => setAllCols(false)}>
-                    Ninguna
-                  </Button>
-                  <Button size="small" onClick={resetCols}>
-                    Restablecer
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    onClick={handleCloseCols}
-                  >
-                    Cerrar
-                  </Button>
-                </Stack>
-              </Box>
-            </Menu>
 
             <Button
               size="small"
@@ -447,6 +279,15 @@ export default function IngresoVentasTotales() {
               disabled={loading || reloading}
             >
               Registrar
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<AddCircleOutlineIcon />}
+              onClick={handleRegisterMeta}
+              disabled={loading || reloading}
+            >
+              Cambiar meta
             </Button>
 
             <Box sx={{ width: { xs: '100%', sm: 320 } }}>
@@ -516,41 +357,53 @@ export default function IngresoVentasTotales() {
               }}
             >
               <TableHead>
-                {/* Fila 1: grupos dinámicos según columnas visibles */}
+                {/* Fila 1: grupos */}
                 <TableRow>
-                  {visibleCols.periodo && (
-                    <TableCell
-                      sx={{ ...sxHeadTop1, ...sxLeftStickyHead, py: 0.5 }}
-                    >
-                      Periodo
-                    </TableCell>
-                  )}
-                  {GROUPS.map((g) => {
-                    const count = groupCounts[g.id] || 0;
-                    if (!count) return null;
-                    return (
-                      <TableCell
-                        key={g.id}
-                        align="center"
-                        colSpan={count}
-                        sx={{ ...sxHeadTop1, py: 0.5 }}
-                      >
-                        {g.label}
-                      </TableCell>
-                    );
-                  })}
+                  <TableCell
+                    sx={{ ...sxHeadTop1, ...sxLeftStickyHead, py: 0.5 }}
+                  >
+                    Periodo
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={2}
+                    sx={{ ...sxHeadTop1, py: 0.5 }}
+                  >
+                    Ingresos mensuales
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={2}
+                    sx={{ ...sxHeadTop1, py: 0.5 }}
+                  >
+                    Acumulado
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={2}
+                    sx={{ ...sxHeadTop1, py: 0.5 }}
+                  >
+                    Diferencias
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    colSpan={3}
+                    sx={{ ...sxHeadTop1, py: 0.5 }}
+                  >
+                    Cumplimiento (%)
+                  </TableCell>
                   <TableCell
                     align="center"
                     colSpan={1}
-                    sx={{ ...sxHeadTop1, ...sxRightStickyHead, py: 0.5 }}
+                    sx={{ ...sxHeadTop1, ...sxRightStickyHead }}
                   >
                     Acciones
                   </TableCell>
                 </TableRow>
 
-                {/* Fila 2: encabezados reales (solo columnas visibles) */}
+                {/* Fila 2: encabezados reales */}
                 <TableRow>
-                  {vcols.map((col, idx) => (
+                  {columns.map((col, idx) => (
                     <TableCell
                       key={col.id}
                       align={col.align}
@@ -573,14 +426,14 @@ export default function IngresoVentasTotales() {
               </TableHead>
 
               <TableBody>
-                {sliced.map((r, ridx) => (
+                {sliced.map((r, idx) => (
                   <TableRow
                     hover
                     role="checkbox"
                     tabIndex={-1}
-                    key={r?.id ?? `${r?.periodo ?? 'row'}-${ridx}`}
+                    key={r?.id ?? `${r?.periodo ?? 'row'}-${idx}`}
                   >
-                    {vcols.map((col, cIdx) => {
+                    {columns.map((col, cIdx) => {
                       const val = r?.[col.id];
                       return (
                         <TableCell
@@ -607,7 +460,7 @@ export default function IngresoVentasTotales() {
 
                 {!error && filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={vcols.length + 1} align="center">
+                    <TableCell colSpan={columns.length + 1} align="center">
                       {query
                         ? 'Sin resultados para tu búsqueda.'
                         : 'No hay utilidades registradas.'}
@@ -631,28 +484,57 @@ export default function IngresoVentasTotales() {
             }}
           />
 
-          {/* Modal crear/editar */}
-          <IngresoVentaTotalModal
+          <PrecioUnitarioModal
             open={openModal}
             onClose={() => setOpenModal(false)}
             onSuccess={() => loadUtilities(true)}
             initialValues={selectedRow}
             periodoActual={periodoActual}
-            createFn={CreateObje}
-            updateFn={UpdateObje}
+            createFn={CreatePrecioUnitario}
+            updateFn={updatePrecioUnitario}
             editablePeriodo={false}
             idKey="id"
+            periodoAcual={periodoActual}
+          />
+
+          <PrecioUnitarioMetaModal
+            open={openMeta}
+            onClose={() => setOpenMeta(false)}
+            initialMeta={100}
+            updateMeta={UpdateMeta}
+            onSuccess={() => {
+              loadUtilities(true);
+            }}
           />
         </Paper>
 
-        {/* Gráficos */}
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-          <IngresoTotalECharts rows={valorsTabla} />
-        </Paper>
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-          <CumplimientoECharts rows={valoresCump} metaDefault={90} />
+        <Paper>
+          <PrecioUnitarioECharts rows={valorsTabla} />
         </Paper>
       </Stack>
     </Paper>
   );
 }
+
+// {/* Modal crear/editar */}
+// <IngresoVentaTotalModal
+//   open={openModal}
+//   onClose={() => setOpenModal(false)}
+//   onSuccess={() => loadUtilities(true)}
+//   initialValues={selectedRow}
+//   periodoActual={periodoActual}
+//   createFn={CreateObje}
+//   updateFn={UpdateObje}
+//   editablePeriodo={false}
+//   idKey="id"
+// />
+
+{
+  /* deja 24px entre hijos por defecto */
+}
+// <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+//   <IngresoTotalECharts rows={0} />
+// </Paper>
+// <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+//   <CumplimientoECharts rows={valoresCump} metaDefault={90} />
+// </Paper>

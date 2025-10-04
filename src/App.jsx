@@ -4,7 +4,7 @@ import UtilidaPage from './pages/UtilidadPage';
 import VentasTotalesPage from './pages/VentasTotalesPage';
 import IngresoVentasTotales from './pages/IngresoVentasTotales';
 import Ingreso from './copy/IngresoVentasTotales';
-import VentasTotales from './pages/VentasTotalesPage';
+import PrecioUnitarioPage from './pages/PrecioUnitarioPage';
 
 function App() {
   return (
@@ -18,6 +18,7 @@ function App() {
             path="ingresoVentasTotales"
             element={<IngresoVentasTotales />}
           />
+          <Route path="precioUnitario" element={<PrecioUnitarioPage />} />
           <Route path="ingreso" element={<Ingreso />} />
         </Route>
       </Routes>
