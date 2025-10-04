@@ -1,3 +1,11 @@
+// components/ReusableKpiTable.jsx
+// Componente genérico para reutilizar tu página de tabla KPI con MUI
+// Permite:
+//  - Enviar GROUPS y columns
+//  - Usar servicios (getAll, getPeriodo, create/update) o datos externos (data)
+//  - Pasar callbacks onRegister/onEditRow y un EditDialog opcional
+//  - Exportar CSV/XLSX, búsqueda global, vistas/pinned, densidad, totales/promedios, paginación
+
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
@@ -31,218 +39,36 @@ import {
 
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import EditIcon from '@mui/icons-material/Edit';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import EditIcon from '@mui/icons-material/Edit';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 
-// Exportar a XLSX
 import * as XLSX from 'xlsx';
 
-import {
-  getAll,
-  CreateObje,
-  UpdateObje,
-} from '../service/IngresoVentaTotal.js';
-import IngresoVentaTotalModal from '../components/IngresoVentaTotal/IngresoVentaTotalModal.jsx';
-import IngresoTotalECharts from '../components/graficos/IngresoTotalECharts.jsx';
-import CumplimientoECharts from '../components/graficos/CumplimientoECharts.jsx';
+// ------------------- Helpers -------------------
+const HEADER_ROW1 = 40; // grupos
+const HEADER_ROW2 = 40; // encabezados reales
 
-import {
-  formatMonthYear,
-  formatPercent,
-  formatNumber,
-} from '../lib/convert.js';
-import { getPeriodo } from '../service/libs.js';
+const defaultFormat = (v) => String(v ?? '');
+const defaultFormatPercent = (v) =>
+  typeof v === 'number' ? `${(v * 100).toFixed(2)}%` : '';
 
-// ------------------- Definición de columnas (incluye group y tipo) -------------------
-const GROUPS = [
-  { id: 'mensuales', label: 'Ingresos mensuales' },
-  { id: 'acumulado', label: 'Acumulado' },
-  { id: 'diferencias', label: 'Diferencias' },
-  { id: 'cumpl', label: 'Cumplimiento (%)' },
-];
-
-// tipo: 'number' | 'percent' | 'date' | 'text'
-const columns = [
-  {
-    id: 'periodo',
-    label: 'Periodo',
-    minWidth: 80,
-    format: formatMonthYear,
-    group: null,
-    type: 'date',
-  },
-  {
-    id: 'PresMen',
-    label: 'Presupuesto Mensual',
-    minWidth: 100,
-    align: 'right',
-    format: formatNumber,
-    group: 'mensuales',
-    type: 'number',
-  },
-  {
-    id: 'VentMenOtrIng',
-    label: 'Venta Men. con otros Ingresos',
-    minWidth: 160,
-    align: 'right',
-    format: formatNumber,
-    group: 'mensuales',
-    type: 'number',
-  },
-  {
-    id: 'venMenCer',
-    label: 'Venta Men. Cerámica',
-    minWidth: 150,
-    align: 'right',
-    format: formatNumber,
-    group: 'mensuales',
-    type: 'number',
-  },
-  {
-    id: 'otrIngr',
-    label: 'Otros Ingresos',
-    minWidth: 120,
-    align: 'right',
-    format: formatNumber,
-    group: 'mensuales',
-    type: 'number',
-  },
-  {
-    id: 'venAcuOtros',
-    label: 'Venta Acumulado Otros',
-    minWidth: 160,
-    align: 'right',
-    format: formatNumber,
-    group: 'acumulado',
-    type: 'number',
-  },
-  {
-    id: 'venAcuCer',
-    label: 'Venta Acum. Cerámica',
-    minWidth: 160,
-    align: 'right',
-    format: formatNumber,
-    group: 'acumulado',
-    type: 'number',
-  },
-  {
-    id: 'acuPres',
-    label: 'Acum. Presupuesto',
-    minWidth: 140,
-    align: 'right',
-    format: formatNumber,
-    group: 'acumulado',
-    type: 'number',
-  },
-  {
-    id: 'diffVe_OtrosvsPres',
-    label: 'Diff Ventas otros vs Presupuesto',
-    minWidth: 180,
-    align: 'right',
-    format: formatNumber,
-    group: 'diferencias',
-    type: 'number',
-  },
-  {
-    id: 'diffVen_CervsPres',
-    label: 'Diff Venta cerámica vs Presupuesto',
-    minWidth: 180,
-    align: 'right',
-    format: formatNumber,
-    group: 'diferencias',
-    type: 'number',
-  },
-  {
-    id: 'meta',
-    label: 'Meta',
-    minWidth: 80,
-    align: 'right',
-    format: formatPercent,
-    group: 'cumpl',
-    type: 'percent',
-  },
-  {
-    id: 'cumplMenCeramica',
-    label: 'Cumpl. Mensual Cerámica',
-    minWidth: 170,
-    align: 'right',
-    format: formatPercent,
-    group: 'cumpl',
-    type: 'percent',
-  },
-  {
-    id: 'cumplOtrosIngrAcuvsAcumPres',
-    label: 'Cumpl. Otros Ingresos Acum. vs Acum. Presupuesto',
-    minWidth: 220,
-    align: 'right',
-    format: formatPercent,
-    group: 'cumpl',
-    type: 'percent',
-  },
-];
-
-const colById = Object.fromEntries(columns.map((c) => [c.id, c]));
-
-// Presets de vistas
-const PRESET_VIEWS = {
-  'KPIs mensuales': {
-    visible: [
-      'periodo',
-      'PresMen',
-      'VentMenOtrIng',
-      'venMenCer',
-      'otrIngr',
-      'cumplMenCeramica',
-    ],
-  },
-  Acumulado: {
-    visible: [
-      'periodo',
-      'venAcuOtros',
-      'venAcuCer',
-      'acuPres',
-      'cumplOtrosIngrAcuvsAcumPres',
-    ],
-  },
-  Diferencias: {
-    visible: ['periodo', 'diffVe_OtrosvsPres', 'diffVen_CervsPres', 'meta'],
-  },
-  Todo: { visible: columns.map((c) => c.id) },
-};
-
-// ---------- Utilidades ----------
-const getDefaultVisible = () =>
-  Object.fromEntries(columns.map((c) => [c.id, true]));
-
-const loadLS = (k, fallback) => {
-  try {
-    const raw = localStorage.getItem(k);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return parsed ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
-const saveLS = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
-function buildCSV(headers, rows) {
-  const escape = (v) => {
-    const s = String(v ?? '');
+const buildCSV = (headers, rows) => {
+  const escape = (val) => {
+    const s = String(val ?? '');
     if (/[",\n;]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
     return s;
   };
   const lines = [headers.map(escape).join(',')];
   for (const r of rows) lines.push(r.map(escape).join(','));
   return lines.join('\n');
-}
+};
 
-function download(filename, content, mime = 'text/plain;charset=utf-8') {
+const download = (filename, content, mime = 'text/plain;charset=utf-8') => {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -252,60 +78,113 @@ function download(filename, content, mime = 'text/plain;charset=utf-8') {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+};
 
-// Alturas de filas de header
-const HEADER_ROW1 = 40; // grupos
-const HEADER_ROW2 = 40; // encabezados reales
+const normalize = (s) =>
+  String(s ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
 
-export default function IngresoVentasTotales() {
+// ------------------- Componente -------------------
+export default function ReusableKpiTable({
+  // Título y llaves LS
+  title = 'Tabla KPI',
+  lsKeyPrefix = 'kpi_table',
+
+  // Estructura de columnas y grupos
+  groups = [], // [{ id, label }]
+  columns = [], // [{ id, label, minWidth, align, type: 'number'|'percent'|'date'|'text', format, group }]
+
+  // Vistas predefinidas (por nombre)
+  presetViews = {}, // { "KPIs": { visible: ['col1', 'col2'], pinnedLeft?:[], pinnedRight?:[] }, ... }
+
+  // Servicios (modo 1: el propio componente carga datos)
+  services, // { getAll: () => Promise<{ normalizados: any[] }| any[]>, getPeriodo?: () => Promise<string|{periodo:string}>, create?: fn, update?: fn }
+
+  // Datos externos (modo 2: el padre pasa data ya cargada)
+  data, // array de filas ya normalizadas
+
+  // Callbacks de acciones
+  onRegister, // () => void | Promise<void>
+  onEditRow, // (row) => void | Promise<void>
+
+  // Componente de edición opcional (modal), si se prefiere controlar aquí
+  EditDialog, // ({ open, onClose, selectedRow, periodoActual, onSuccess }) => JSX
+
+  // Opciones UI
+  rowsPerPageOptions = [10, 12],
+  defaultRowsPerPage = 10,
+  initialDensity = 'compact', // 'compact' | 'normal'
+}) {
+  // Map rápido de columnas
+  const colById = useMemo(
+    () => Object.fromEntries(columns.map((c) => [c.id, c])),
+    [columns]
+  );
+
+  const getDefaultVisible = () =>
+    Object.fromEntries(columns.map((c) => [c.id, true]));
+
+  const loadLS = (k, fallback) => {
+    try {
+      const raw = localStorage.getItem(`${lsKeyPrefix}_${k}`);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return parsed ?? fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const saveLS = (k, v) =>
+    localStorage.setItem(`${lsKeyPrefix}_${k}`, JSON.stringify(v));
+
+  // ------------------- Estado principal -------------------
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(defaultRowsPerPage);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!Array.isArray(data));
   const [reloading, setReloading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [rows, setRows] = useState([]); // normalizados para tabla
-  const [valorsTabla, setValoresTabla] = useState([]); // datos para gráfico
-  const [valoresCump, setValoresCump] = useState([]);
+  const [rows, setRows] = useState(() => (Array.isArray(data) ? data : []));
 
-  // modal crear/editar
+  // Modal interno (si EditDialog está presente)
   const [openModal, setOpenModal] = useState(false);
   const [periodoActual, setPeriodoActual] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null); // null = crear
 
   // ---------- Columnas: visibilidad + pineo ----------
   const defaultVisible = useMemo(
-    () => ({ ...getDefaultVisible(), periodo: true }),
-    []
+    () => ({ ...getDefaultVisible(), [columns[0]?.id]: true }),
+    [columns]
   );
   const [visibleCols, setVisibleCols] = useState(() =>
-    loadLS('ivt_visible_cols', defaultVisible)
+    loadLS('visible_cols', defaultVisible)
   );
-  useEffect(() => saveLS('ivt_visible_cols', visibleCols), [visibleCols]);
+  useEffect(() => saveLS('visible_cols', visibleCols), [visibleCols]);
 
   const [pinnedLeft, setPinnedLeft] = useState(() =>
-    loadLS('ivt_pinned_left', ['periodo'])
+    loadLS('pinned_left', [columns[0]?.id].filter(Boolean))
   );
   const [pinnedRight, setPinnedRight] = useState(() =>
-    loadLS('ivt_pinned_right', [])
+    loadLS('pinned_right', [])
   );
-  useEffect(() => saveLS('ivt_pinned_left', pinnedLeft), [pinnedLeft]);
-  useEffect(() => saveLS('ivt_pinned_right', pinnedRight), [pinnedRight]);
+  useEffect(() => saveLS('pinned_left', pinnedLeft), [pinnedLeft]);
+  useEffect(() => saveLS('pinned_right', pinnedRight), [pinnedRight]);
 
-  // Vistas guardadas
-  const [customViews, setCustomViews] = useState(() => loadLS('ivt_views', {}));
+  const [customViews, setCustomViews] = useState(() => loadLS('views', {}));
   const [activeView, setActiveView] = useState('');
-  useEffect(() => saveLS('ivt_views', customViews), [customViews]);
+  useEffect(() => saveLS('views', customViews), [customViews]);
 
   const applyView = (name, preset = false) => {
-    const conf = preset ? PRESET_VIEWS[name] : customViews[name];
+    const conf = preset ? presetViews[name] : customViews[name];
     if (!conf) return;
     const vis = Object.fromEntries(columns.map((c) => [c.id, false]));
-    for (const id of conf.visible) vis[id] = true;
-    vis.periodo = true; // forzar
+    for (const id of conf.visible) if (vis.hasOwnProperty(id)) vis[id] = true;
+    // Forzar que la primera columna (generalmente "periodo") esté visible
+    if (columns[0]?.id) vis[columns[0].id] = true;
     setVisibleCols(vis);
     if (conf.pinnedLeft) setPinnedLeft(conf.pinnedLeft);
     if (conf.pinnedRight) setPinnedRight(conf.pinnedRight);
@@ -330,23 +209,23 @@ export default function IngresoVentasTotales() {
   const toggleCol = (id) => {
     setVisibleCols((prev) => ({
       ...prev,
-      [id]: id === 'periodo' ? true : !prev[id],
+      [id]: id === columns[0]?.id ? true : !prev[id],
     }));
   };
 
   const setAllCols = (val) => {
     const next = Object.fromEntries(
-      columns.map((c) => [c.id, c.id === 'periodo' ? true : val])
+      columns.map((c) => [c.id, c.id === columns[0]?.id ? true : val])
     );
     setVisibleCols(next);
   };
 
   const resetCols = () => setVisibleCols(defaultVisible);
 
-  // Orden visible (estático según `columns`)
+  // Orden visible (según `columns`)
   const visibleOrdered = useMemo(
     () => columns.filter((c) => !!visibleCols[c.id]),
-    [visibleCols]
+    [columns, visibleCols]
   );
 
   // Offsets para pinned
@@ -355,25 +234,24 @@ export default function IngresoVentasTotales() {
     let acc = 0;
     for (const id of pinnedLeft.filter((id) => visibleCols[id])) {
       off[id] = acc;
-      acc += (colById[id]?.minWidth ?? 120) + 1; // +1 por borde
+      acc += (colById[id]?.minWidth ?? 120) + 1;
     }
     return off;
-  }, [pinnedLeft, visibleCols]);
+  }, [pinnedLeft, visibleCols, colById]);
 
   const rightOffsets = useMemo(() => {
     const off = {};
-    let acc = 120; // reservar espacio para Acciones (minWidth ~120)
+    let acc = 120; // espacio Acciones
     for (const id of [...pinnedRight].reverse()) {
       if (!visibleCols[id]) continue;
       off[id] = acc;
       acc += (colById[id]?.minWidth ?? 120) + 1;
     }
     return off;
-  }, [pinnedRight, visibleCols]);
+  }, [pinnedRight, visibleCols, colById]);
 
   const isPinnedLeft = (id) => pinnedLeft.includes(id);
   const isPinnedRight = (id) => pinnedRight.includes(id);
-
   const pinLeft = (id) =>
     setPinnedLeft((arr) => Array.from(new Set([...arr, id])));
   const unpinLeft = (id) => setPinnedLeft((arr) => arr.filter((x) => x !== id));
@@ -382,58 +260,53 @@ export default function IngresoVentasTotales() {
   const unpinRight = (id) =>
     setPinnedRight((arr) => arr.filter((x) => x !== id));
 
-  // ------------------- Cargar datos -------------------
-  const loadUtilities = async (isReload = false) => {
+  // ------------------- Cargar datos (si services) -------------------
+  const loadAll = async (isReload = false) => {
+    if (!services?.getAll) return; // modo data-controlado
     isReload ? setReloading(true) : setLoading(true);
     setError(null);
     try {
-      const resp = await getAll();
-      const normalizados = resp?.normalizados ?? [];
-      const valores = resp?.valores ?? [];
-      const ValCum = resp?.graficaCumplimiento ?? [];
-      setValoresCump(ValCum);
-      setRows(normalizados);
-      setValoresTabla(valores);
+      const resp = await services.getAll();
+      const list = Array.isArray(resp) ? resp : (resp?.normalizados ?? []);
+      setRows(list);
     } catch (err) {
       console.error(err);
       setError('No se pudo cargar la lista');
       setRows([]);
-      setValoresTabla([]);
     } finally {
       isReload ? setReloading(false) : setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadUtilities(false);
+    if (!Array.isArray(data)) loadAll(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ------------------- Búsqueda global (única) -------------------
-  const normalize = (s) =>
-    String(s ?? '')
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
-      .toLowerCase();
+  // Si cambian los datos externos, actualiza
+  useEffect(() => {
+    if (Array.isArray(data)) setRows(data);
+  }, [data]);
 
+  // ------------------- Búsqueda global -------------------
   const rowMatchesQuery = (r, nq) => {
     if (!nq) return true;
     return columns.some((c) => {
       const v = r?.[c.id];
       const raw = normalize(v);
-      const formatted = c.format ? normalize(c.format(v)) : '';
+      const format = c.format || defaultFormat;
+      const formatted = normalize(format(v));
       return raw.includes(nq) || formatted.includes(nq);
     });
   };
 
   const filtered = useMemo(() => {
-    const data = Array.isArray(rows) ? rows : [];
+    const dataArr = Array.isArray(rows) ? rows : [];
     const nq = normalize(query.trim());
-    return data.filter((r) => rowMatchesQuery(r, nq));
-  }, [query, rows]);
+    return dataArr.filter((r) => rowMatchesQuery(r, nq));
+  }, [query, rows, columns]);
 
-  useEffect(() => {
-    setPage(0);
-  }, [filtered.length]);
+  useEffect(() => setPage(0), [filtered.length]);
 
   const start = page * rowsPerPage;
   const sliced = useMemo(
@@ -441,41 +314,17 @@ export default function IngresoVentasTotales() {
     [filtered, start, rowsPerPage]
   );
 
-  // ------------------- Modal handlers -------------------
-  const handleRegistrar = async () => {
-    try {
-      setSelectedRow(null);
-      setOpenModal(true);
-      const per = await getPeriodo();
-      const p =
-        typeof per === 'string'
-          ? per
-          : typeof per?.periodo === 'string'
-            ? per.periodo
-            : null;
-      setPeriodoActual(p);
-    } catch (err) {
-      console.log(err);
-      setPeriodoActual(null);
-    }
-  };
-
-  const handleEditar = (row) => {
-    setSelectedRow(row);
-    setOpenModal(true);
-  };
-
   // ------------------- Densidad -------------------
   const [density, setDensity] = useState(() =>
-    loadLS('ivt_density', 'compact')
+    loadLS('density', initialDensity)
   );
-  useEffect(() => saveLS('ivt_density', density), [density]);
+  useEffect(() => saveLS('density', density), [density]);
   const tableSize = density === 'compact' ? 'small' : 'medium';
 
   // ------------------- Export -------------------
   const getVisibleHeaderLabels = () => visibleOrdered.map((c) => c.label);
-  const getVisibleRowsFormatted = (data) =>
-    data.map((r) =>
+  const getVisibleRowsFormatted = (dataRows) =>
+    dataRows.map((r) =>
       visibleOrdered.map((c) => (c.format ? c.format(r?.[c.id]) : r?.[c.id]))
     );
 
@@ -484,7 +333,11 @@ export default function IngresoVentasTotales() {
       getVisibleHeaderLabels(),
       getVisibleRowsFormatted(filtered)
     );
-    download('ingresos_visibles.csv', csv, 'text/csv;charset=utf-8');
+    download(
+      `${title.replace(/\s+/g, '_').toLowerCase()}_visibles.csv`,
+      csv,
+      'text/csv;charset=utf-8'
+    );
   };
 
   const exportXLSX = () => {
@@ -492,16 +345,16 @@ export default function IngresoVentasTotales() {
     const body = getVisibleRowsFormatted(filtered);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Ingresos');
+    XLSX.utils.book_append_sheet(wb, ws, 'Datos');
     const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     download(
-      'ingresos_visibles.xlsx',
+      `${title.replace(/\s+/g, '_').toLowerCase()}_visibles.xlsx`,
       out,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     );
   };
 
-  // ------------------- Totales y promedios (sobre filtrados) -------------------
+  // ------------------- Totales y promedios -------------------
   const totalsAndAvg = useMemo(() => {
     const sums = {};
     const counts = {};
@@ -577,6 +430,39 @@ export default function IngresoVentasTotales() {
     zIndex: 2,
   });
 
+  // ------------------- Acciones (Registrar/Editar) -------------------
+  const handleRegistrar = async () => {
+    if (onRegister) return onRegister();
+    if (!EditDialog) return; // no hay nada que abrir
+    try {
+      setSelectedRow(null);
+      setOpenModal(true);
+      if (services?.getPeriodo) {
+        const per = await services.getPeriodo();
+        const p =
+          typeof per === 'string'
+            ? per
+            : typeof per?.periodo === 'string'
+              ? per.periodo
+              : null;
+        setPeriodoActual(p);
+      } else {
+        setPeriodoActual(null);
+      }
+    } catch (err) {
+      console.log(err);
+      setPeriodoActual(null);
+    }
+  };
+
+  const handleEditar = (row) => {
+    if (onEditRow) return onEditRow(row);
+    if (!EditDialog) return;
+    setSelectedRow(row);
+    setOpenModal(true);
+  };
+
+  // -------------- Render --------------
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
@@ -591,8 +477,7 @@ export default function IngresoVentasTotales() {
         <Paper>
           <Toolbar sx={{ gap: 1, flexWrap: 'wrap', position: 'relative' }}>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              INGRESO POR VENTA TOTALES{' '}
-              {activeView ? `— Vista: ${activeView}` : ''}
+              {title} {activeView ? `— Vista: ${activeView}` : ''}
             </Typography>
 
             <Tooltip title="Aplicar vista / Columnas / Pinned">
@@ -606,7 +491,6 @@ export default function IngresoVentasTotales() {
               </Button>
             </Tooltip>
 
-            {/* Densidad */}
             <ToggleButtonGroup
               size="small"
               value={density}
@@ -617,7 +501,6 @@ export default function IngresoVentasTotales() {
               <ToggleButton value="normal">Normal</ToggleButton>
             </ToggleButtonGroup>
 
-            {/* Export */}
             <Tooltip title="Exportar CSV">
               <IconButton size="small" onClick={exportCSV}>
                 <FileDownloadOutlinedIcon />
@@ -634,15 +517,17 @@ export default function IngresoVentasTotales() {
               </Button>
             </Tooltip>
 
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<AddCircleOutlineIcon />}
-              onClick={handleRegistrar}
-              disabled={loading || reloading}
-            >
-              Registrar
-            </Button>
+            {(onRegister || EditDialog) && (
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<AddCircleOutlineIcon />}
+                onClick={handleRegistrar}
+                disabled={loading || reloading}
+              >
+                Registrar
+              </Button>
+            )}
 
             <Box sx={{ width: { xs: '100%', sm: 320 } }}>
               <TextField
@@ -686,7 +571,7 @@ export default function IngresoVentasTotales() {
             <Box sx={{ px: 2, py: 1, color: 'error.main' }}>{error}</Box>
           )}
 
-          {/* Menú de Vistas + Columnas + Pin */}
+          {/* Menú Vistas/Columnas/Pin */}
           <Menu anchorEl={anchorCols} open={openCols} onClose={handleCloseCols}>
             <Box sx={{ p: 1.5, width: 380 }}>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
@@ -697,7 +582,7 @@ export default function IngresoVentasTotales() {
                 spacing={1}
                 sx={{ flexWrap: 'wrap', mb: 1 }}
               >
-                {Object.keys(PRESET_VIEWS).map((name) => (
+                {Object.keys(presetViews).map((name) => (
                   <Button
                     key={name}
                     size="small"
@@ -753,7 +638,7 @@ export default function IngresoVentasTotales() {
                 Mostrar/ocultar columnas & anclar
               </Typography>
               <FormGroup>
-                {columns.map((c) => (
+                {columns.map((c, idx) => (
                   <Stack
                     direction="row"
                     alignItems="center"
@@ -766,7 +651,7 @@ export default function IngresoVentasTotales() {
                           size="small"
                           checked={!!visibleCols[c.id]}
                           onChange={() => toggleCol(c.id)}
-                          disabled={c.id === 'periodo'}
+                          disabled={idx === 0}
                         />
                       }
                       label={c.label}
@@ -844,7 +729,7 @@ export default function IngresoVentasTotales() {
             <Table
               stickyHeader
               size={tableSize}
-              aria-label="tabla utilidades"
+              aria-label="tabla kpi"
               sx={{
                 minWidth: 900,
                 borderCollapse: 'separate',
@@ -863,9 +748,9 @@ export default function IngresoVentasTotales() {
               }}
             >
               <TableHead>
-                {/* Fila 1: grupos dinámicos según columnas visibles */}
+                {/* Fila 1: grupos */}
                 <TableRow>
-                  {visibleCols.periodo && (
+                  {visibleCols[columns[0]?.id] && (
                     <TableCell
                       sx={{
                         position: 'sticky',
@@ -878,10 +763,10 @@ export default function IngresoVentasTotales() {
                         py: 0.5,
                       }}
                     >
-                      Periodo
+                      {columns[0]?.label}
                     </TableCell>
                   )}
-                  {GROUPS.map((g) => {
+                  {groups.map((g) => {
                     const count = visibleOrdered.filter(
                       (c) => c.group === g.id
                     ).length;
@@ -897,13 +782,19 @@ export default function IngresoVentasTotales() {
                       </TableCell>
                     );
                   })}
-                  <TableCell
-                    align="center"
-                    colSpan={1}
-                    sx={{ ...sxRightStickyHead, height: HEADER_ROW1, py: 0.5 }}
-                  >
-                    Acciones
-                  </TableCell>
+                  {(onEditRow || EditDialog) && (
+                    <TableCell
+                      align="center"
+                      colSpan={1}
+                      sx={{
+                        ...sxRightStickyHead,
+                        height: HEADER_ROW1,
+                        py: 0.5,
+                      }}
+                    >
+                      Acciones
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* Fila 2: encabezados reales */}
@@ -924,19 +815,21 @@ export default function IngresoVentasTotales() {
                       {col.label}
                     </TableCell>
                   ))}
-                  <TableCell
-                    align="center"
-                    sx={{
-                      position: 'sticky',
-                      top: HEADER_ROW1,
-                      right: 0,
-                      bgcolor: 'background.paper',
-                      zIndex: 6,
-                      minWidth: 120,
-                    }}
-                  >
-                    Acciones
-                  </TableCell>
+                  {(onEditRow || EditDialog) && (
+                    <TableCell
+                      align="center"
+                      sx={{
+                        position: 'sticky',
+                        top: HEADER_ROW1,
+                        right: 0,
+                        bgcolor: 'background.paper',
+                        zIndex: 6,
+                        minWidth: 120,
+                      }}
+                    >
+                      Acciones
+                    </TableCell>
+                  )}
                 </TableRow>
               </TableHead>
 
@@ -946,7 +839,7 @@ export default function IngresoVentasTotales() {
                     hover
                     role="checkbox"
                     tabIndex={-1}
-                    key={r?.id ?? `${r?.periodo ?? 'row'}-${ridx}`}
+                    key={r?.id ?? `${r?.[columns[0]?.id] ?? 'row'}-${ridx}`}
                   >
                     {visibleOrdered.map((col) => {
                       const val = r?.[col.id];
@@ -956,6 +849,11 @@ export default function IngresoVentasTotales() {
                       const pinnedRightSx = isPinnedRight(col.id)
                         ? sxRightStickyCell(col.id)
                         : null;
+                      const fmt =
+                        col.format ||
+                        (col.type === 'percent'
+                          ? defaultFormatPercent
+                          : defaultFormat);
                       return (
                         <TableCell
                           key={col.id}
@@ -965,47 +863,52 @@ export default function IngresoVentasTotales() {
                             ...(pinnedRightSx || {}),
                           }}
                         >
-                          {col.format ? col.format(val) : val}
+                          {fmt(val)}
                         </TableCell>
                       );
                     })}
-                    <TableCell
-                      align="center"
-                      sx={{
-                        position: 'sticky',
-                        right: 0,
-                        bgcolor: 'background.paper',
-                        boxShadow: (t) => `-2px 0 0 ${t.palette.divider} inset`,
-                        zIndex: 2,
-                      }}
-                    >
-                      <Button
-                        size="small"
-                        startIcon={<EditIcon />}
-                        onClick={() => handleEditar(r)}
-                        sx={{ mr: 1 }}
+                    {(onEditRow || EditDialog) && (
+                      <TableCell
+                        align="center"
+                        sx={{
+                          position: 'sticky',
+                          right: 0,
+                          bgcolor: 'background.paper',
+                          boxShadow: (t) =>
+                            `-2px 0 0 ${t.palette.divider} inset`,
+                          zIndex: 2,
+                        }}
                       >
-                        Editar
-                      </Button>
-                    </TableCell>
+                        <Button
+                          size="small"
+                          startIcon={<EditIcon />}
+                          onClick={() => handleEditar(r)}
+                          sx={{ mr: 1 }}
+                        >
+                          Editar
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
 
                 {!error && filtered.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={visibleOrdered.length + 1}
+                      colSpan={
+                        visibleOrdered.length +
+                        (onEditRow || EditDialog ? 1 : 0)
+                      }
                       align="center"
                     >
                       {query
                         ? 'Sin resultados para tu búsqueda.'
-                        : 'No hay utilidades registradas.'}
+                        : 'No hay registros.'}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
 
-              {/* Footer con Totales y Promedios */}
               <TableFooter>
                 <TableRow>
                   {visibleOrdered.map((col) => (
@@ -1015,15 +918,21 @@ export default function IngresoVentasTotales() {
                       sx={{ fontWeight: 700 }}
                     >
                       {col.type === 'number'
-                        ? formatNumber(totalsAndAvg.totals[col.id])
+                        ? col.format
+                          ? col.format(totalsAndAvg.totals[col.id])
+                          : totalsAndAvg.totals[col.id]
                         : col.type === 'percent'
-                          ? formatPercent(totalsAndAvg.totals[col.id])
+                          ? col.format
+                            ? col.format(totalsAndAvg.totals[col.id])
+                            : defaultFormatPercent(totalsAndAvg.totals[col.id])
                           : ''}
                     </TableCell>
                   ))}
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>
-                    Totales
-                  </TableCell>
+                  {(onEditRow || EditDialog) && (
+                    <TableCell align="center" sx={{ fontWeight: 700 }}>
+                      Totales
+                    </TableCell>
+                  )}
                 </TableRow>
                 <TableRow>
                   {visibleOrdered.map((col) => (
@@ -1033,15 +942,21 @@ export default function IngresoVentasTotales() {
                       sx={{ fontStyle: 'italic' }}
                     >
                       {col.type === 'number'
-                        ? formatNumber(totalsAndAvg.avgs[col.id])
+                        ? col.format
+                          ? col.format(totalsAndAvg.avgs[col.id])
+                          : totalsAndAvg.avgs[col.id]
                         : col.type === 'percent'
-                          ? formatPercent(totalsAndAvg.avgs[col.id])
+                          ? col.format
+                            ? col.format(totalsAndAvg.avgs[col.id])
+                            : defaultFormatPercent(totalsAndAvg.avgs[col.id])
                           : ''}
                     </TableCell>
                   ))}
-                  <TableCell align="center" sx={{ fontStyle: 'italic' }}>
-                    Promedios
-                  </TableCell>
+                  {(onEditRow || EditDialog) && (
+                    <TableCell align="center" sx={{ fontStyle: 'italic' }}>
+                      Promedios
+                    </TableCell>
+                  )}
                 </TableRow>
               </TableFooter>
             </Table>
@@ -1053,35 +968,121 @@ export default function IngresoVentasTotales() {
             page={page}
             onPageChange={(_e, p) => setPage(p)}
             rowsPerPage={rowsPerPage}
-            rowsPerPageOptions={[10, 12]}
+            rowsPerPageOptions={rowsPerPageOptions}
             onRowsPerPageChange={(e) => {
               setRowsPerPage(+e.target.value);
               setPage(0);
             }}
           />
-
-          {/* Modal crear/editar */}
-          <IngresoVentaTotalModal
-            open={openModal}
-            onClose={() => setOpenModal(false)}
-            onSuccess={() => loadUtilities(true)}
-            initialValues={selectedRow}
-            periodoActual={periodoActual}
-            createFn={CreateObje}
-            updateFn={UpdateObje}
-            editablePeriodo={false}
-            idKey="id"
-          />
-        </Paper>
-
-        {/* Gráficos */}
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-          <IngresoTotalECharts rows={valorsTabla} />
-        </Paper>
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-          <CumplimientoECharts rows={valoresCump} metaDefault={90} />
         </Paper>
       </Stack>
+
+      {EditDialog && (
+        <EditDialog
+          open={openModal}
+          onClose={() => setOpenModal(false)}
+          selectedRow={selectedRow}
+          periodoActual={periodoActual}
+          onSuccess={async () => {
+            setOpenModal(false);
+            await loadAll(true);
+          }}
+        />
+      )}
     </Paper>
   );
 }
+
+// -------------------------------------------------------------
+// Ejemplos de uso
+// -------------------------------------------------------------
+
+// 1) MODO SERVICIOS (igual a tu página actual, pero usando el componente genérico)
+//    - Le pasas groups, columns, presetViews y los servicios getAll/getPeriodo
+//    - Usas tu IngresoVentaTotalModal como EditDialog
+
+/*
+import IngresoVentaTotalModal from '../components/IngresoVentaTotal/IngresoVentaTotalModal.jsx';
+import { getAll, CreateObje, UpdateObje } from '../service/IngresoVentaTotal.js';
+import { formatMonthYear, formatPercent, formatNumber } from '../lib/convert.js';
+
+const GROUPS = [
+  { id: 'mensuales', label: 'Ingresos mensuales' },
+  { id: 'acumulado', label: 'Acumulado' },
+  { id: 'diferencias', label: 'Diferencias' },
+  { id: 'cumpl', label: 'Cumplimiento (%)' },
+];
+
+const columns = [
+  { id: 'periodo', label: 'Periodo', minWidth: 80, format: formatMonthYear, group: null, type: 'date' },
+  { id: 'PresMen', label: 'Presupuesto Mensual', minWidth: 100, align: 'right', format: formatNumber, group: 'mensuales', type: 'number' },
+  { id: 'VentMenOtrIng', label: 'Venta Men. con otros Ingresos', minWidth: 160, align: 'right', format: formatNumber, group: 'mensuales', type: 'number' },
+  { id: 'venMenCer', label: 'Venta Men. Cerámica', minWidth: 150, align: 'right', format: formatNumber, group: 'mensuales', type: 'number' },
+  { id: 'otrIngr', label: 'Otros Ingresos', minWidth: 120, align: 'right', format: formatNumber, group: 'mensuales', type: 'number' },
+  { id: 'venAcuOtros', label: 'Venta Acumulado Otros', minWidth: 160, align: 'right', format: formatNumber, group: 'acumulado', type: 'number' },
+  { id: 'venAcuCer', label: 'Venta Acum. Cerámica', minWidth: 160, align: 'right', format: formatNumber, group: 'acumulado', type: 'number' },
+  { id: 'acuPres', label: 'Acum. Presupuesto', minWidth: 140, align: 'right', format: formatNumber, group: 'acumulado', type: 'number' },
+  { id: 'diffVe_OtrosvsPres', label: 'Diff Ventas otros vs Presupuesto', minWidth: 180, align: 'right', format: formatNumber, group: 'diferencias', type: 'number' },
+  { id: 'diffVen_CervsPres', label: 'Diff Venta cerámica vs Presupuesto', minWidth: 180, align: 'right', format: formatNumber, group: 'diferencias', type: 'number' },
+  { id: 'meta', label: 'Meta', minWidth: 80, align: 'right', format: formatPercent, group: 'cumpl', type: 'percent' },
+  { id: 'cumplMenCeramica', label: 'Cumpl. Mensual Cerámica', minWidth: 170, align: 'right', format: formatPercent, group: 'cumpl', type: 'percent' },
+  { id: 'cumplOtrosIngrAcuvsAcumPres', label: 'Cumpl. Otros Ingresos Acum. vs Acum. Presupuesto', minWidth: 220, align: 'right', format: formatPercent, group: 'cumpl', type: 'percent' },
+];
+
+const PRESET_VIEWS = {
+  'KPIs mensuales': { visible: ['periodo','PresMen','VentMenOtrIng','venMenCer','otrIngr','cumplMenCeramica'] },
+  Acumulado: { visible: ['periodo','venAcuOtros','venAcuCer','acuPres','cumplOtrosIngrAcuvsAcumPres'] },
+  Diferencias: { visible: ['periodo','diffVe_OtrosvsPres','diffVen_CervsPres','meta'] },
+  Todo: { visible: columns.map((c) => c.id) },
+};
+
+export function IngresoVentasTotalesPage() {
+  return (
+    <ReusableKpiTable
+      title="INGRESO POR VENTA TOTALES"
+      lsKeyPrefix="ivt"
+      groups={GROUPS}
+      columns={columns}
+      presetViews={PRESET_VIEWS}
+      services={{
+        getAll,
+        getPeriodo: async () => (await import('../service/libs.js')).getPeriodo(),
+        create: CreateObje,
+        update: UpdateObje,
+      }}
+      EditDialog={IngresoVentaTotalModal}
+    />
+  );
+}
+*/
+
+// 2) MODO DATOS EXTERNOS + FUNCIONES (útil para abrir desde un popup y reutilizar)
+//    - Le pasas los datos ya cargados (data) y un onRegister / onEditRow
+//    - Perfecto para usar el componente dentro de un Dialog de otro módulo
+
+/*
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+
+export function KPITableInDialog({ open, onClose, data, onRegister, onEditRow }) {
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
+      <DialogTitle>KPIs — Vista rápida</DialogTitle>
+      <DialogContent dividers>
+        <ReusableKpiTable
+          title="KPIs"
+          lsKeyPrefix="kpi_dialog"
+          groups={GROUPS}
+          columns={columns}
+          presetViews={PRESET_VIEWS}
+          data={data}
+          onRegister={onRegister}
+          onEditRow={onEditRow}
+          rowsPerPageOptions={[8, 12, 24]}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+*/

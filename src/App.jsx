@@ -5,6 +5,8 @@ import VentasTotalesPage from './pages/VentasTotalesPage';
 import IngresoVentasTotales from './pages/IngresoVentasTotales';
 import Ingreso from './copy/IngresoVentasTotales';
 import PrecioUnitarioPage from './pages/PrecioUnitarioPage';
+import KPIsMensuales from './components/IngresoVentaTotal/KPIsMensuales';
+import Prueba from './pages/Prueba';
 
 function App() {
   return (
@@ -18,8 +20,10 @@ function App() {
             path="ingresoVentasTotales"
             element={<IngresoVentasTotales />}
           />
+          <Route path="ingresoVentasTotales/kpis" element={<KPIsMensuales />} />
           <Route path="precioUnitario" element={<PrecioUnitarioPage />} />
           <Route path="ingreso" element={<Ingreso />} />
+          <Route path="prueba" element={<Prueba />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -14,17 +14,29 @@ import {
 import { formatNumber } from '../../lib/convert';
 
 /** Convierte Date | 'YYYY-MM' | 'YYYY-MM-DD...' a 'YYYY-MM' */
-function toMonthInputValue(value) {
+function toMonthLabel(value, locale = 'es-BO') {
   if (!value) return '';
+  let d;
+
+  // Acepta 'YYYY-MM' o 'YYYY-MM-DD'
   if (typeof value === 'string') {
-    const m = value.match(/^(\d{4}-\d{2})(?:-\d{2}.*)?$/);
-    if (m) return m[1];
+    const m = value.match(/^(\d{4})-(\d{2})(?:-\d{2}.*)?$/);
+    if (!m) return '';
+    const [_, y, mo] = m;
+    // Evita desfaces de zona horaria
+    d = new Date(Date.UTC(Number(y), Number(mo) - 1, 1));
+  } else {
+    d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
   }
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
+
+  // En español suele salir "marzo de 2025"; quitamos " de " y capitalizamos
+  let s = new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+  }).format(d);
+  s = s.replace(' de ', ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /** Parsea string visual a Number (quita espacios) */
@@ -115,9 +127,9 @@ export default function IngresoVentaTotalModal({
     setTouched({});
 
     if (isEdit) {
-      const per = toMonthInputValue(initialValues?.periodo);
+      const per = toMonthLabel(initialValues?.periodo);
       setForm({
-        periodo: per || toMonthInputValue(new Date()),
+        periodo: per || toMonthLabel(new Date()),
         PresMen:
           initialValues?.PresMen != null
             ? formatNumber(initialValues.PresMen)
@@ -136,8 +148,7 @@ export default function IngresoVentaTotalModal({
             : '',
       });
     } else {
-      const per =
-        toMonthInputValue(periodoActual) || toMonthInputValue(new Date());
+      const per = toMonthLabel(periodoActual) || toMonthLabel(new Date());
       setForm({
         periodo: per,
         PresMen: '',

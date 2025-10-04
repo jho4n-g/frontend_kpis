@@ -171,8 +171,8 @@ export default function HomePage({ window }) {
           icon: <DescriptionIcon />,
         },
         {
-          segment: 'ingreso',
-          title: 'Estadisticas',
+          segment: 'ingresoVentasTotales/kpis',
+          title: 'KPI',
           icon: <DescriptionIcon />,
         },
       ],
@@ -182,7 +182,7 @@ export default function HomePage({ window }) {
       title: 'Precio Unitario',
       icon: <LocalOfferIcon />,
     },
-    { segment: '#1', title: 'Documentos', icon: <DescriptionIcon /> },
+    { segment: 'prueba', title: 'Documentos', icon: <DescriptionIcon /> },
     { segment: '#2', title: 'Socios', icon: <GroupIcon /> },
     { segment: '#3', title: 'Sucursales', icon: <BusinessIcon /> },
   ];
