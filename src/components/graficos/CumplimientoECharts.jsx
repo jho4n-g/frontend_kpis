@@ -174,14 +174,6 @@ export default function CumplimientoChart({ rows = [] }) {
   const option = useCumplimientoOption(rows);
   const [open, setOpen] = useState(false);
 
-  if (!rows.length) {
-    return (
-      <div style={{ height: 320, display: 'grid', placeItems: 'center' }}>
-        Sin datos para graficar
-      </div>
-    );
-  }
-
   // Doble-clic abre la vista ampliada
   const onEvents = useMemo(
     () => ({
@@ -189,6 +181,14 @@ export default function CumplimientoChart({ rows = [] }) {
     }),
     []
   );
+
+  if (!rows.length) {
+    return (
+      <div style={{ height: 320, display: 'grid', placeItems: 'center' }}>
+        Sin datos para graficar
+      </div>
+    );
+  }
 
   return (
     <>

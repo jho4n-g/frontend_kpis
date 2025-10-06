@@ -10,33 +10,41 @@ import {
   Box,
   CircularProgress,
   Alert,
+  prerelease,
 } from '@mui/material';
 import { formatNumber } from '../../lib/convert';
 
-/** Convierte Date | 'YYYY-MM' | 'YYYY-MM-DD...' a 'YYYY-MM' */
-function toMonthLabel(value, locale = 'es-BO') {
-  if (!value) return '';
-  let d;
+const formatPeriodo = (value) => {
+  if (!value) return value;
 
-  // Acepta 'YYYY-MM' o 'YYYY-MM-DD'
-  if (typeof value === 'string') {
-    const m = value.match(/^(\d{4})-(\d{2})(?:-\d{2}.*)?$/);
-    if (!m) return '';
-    const [_, y, mo] = m;
-    // Evita desfaces de zona horaria
-    d = new Date(Date.UTC(Number(y), Number(mo) - 1, 1));
-  } else {
-    d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '';
+  // Separar año y mes
+  const parts = value.split('-');
+  if (parts.length === 2) {
+    const año = parts[0];
+    const mes = parts[1];
+
+    // Capitalizar solo la primera letra del mes
+    const mesCapitalizado =
+      mes.charAt(0).toUpperCase() + mes.slice(1).toLowerCase();
+
+    return `${año}-${mesCapitalizado}`;
   }
 
-  // En español suele salir "marzo de 2025"; quitamos " de " y capitalizamos
-  let s = new Intl.DateTimeFormat(locale, {
-    month: 'long',
-    year: 'numeric',
-  }).format(d);
-  s = s.replace(' de ', ' ');
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return value;
+};
+/** Convierte Date | 'YYYY-MM' | 'YYYY-MM-DD...' a 'YYYY-MM' */
+function toMonthInputValue(value) {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    // acepta 'YYYY-MM' o 'YYYY-MM-DD' y devuelve 'YYYY-MM'
+    const m = value.match(/^(\d{4}-\d{2})/);
+    if (m) return m[1];
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
 }
 
 /** Parsea string visual a Number (quita espacios) */
@@ -127,9 +135,11 @@ export default function IngresoVentaTotalModal({
     setTouched({});
 
     if (isEdit) {
-      const per = toMonthLabel(initialValues?.periodo);
+      const p = initialValues?.periodo ?? new Date();
+      //console.log('editar', p);
       setForm({
-        periodo: per || toMonthLabel(new Date()),
+        periodo: toMonthInputValue(p), // <-- siempre 'YYYY-MM'
+        // periodoLabel: toMonthLabel(p), // si lo necesitas para mostrar
         PresMen:
           initialValues?.PresMen != null
             ? formatNumber(initialValues.PresMen)
@@ -147,16 +157,39 @@ export default function IngresoVentaTotalModal({
             ? formatNumber(initialValues.otrIngr)
             : '',
       });
-    } else {
-      const per = toMonthLabel(periodoActual) || toMonthLabel(new Date());
-      setForm({
-        periodo: per,
-        PresMen: '',
-        VentMenOtrIng: '',
-        venMenCer: '',
-        otrIngr: '',
-      });
+      return; // evita ejecutar también la rama async
     }
+
+    let cancel = false;
+    (async () => {
+      try {
+        const p = await periodoActual(); // Date o 'YYYY-MM'
+        if (cancel) return;
+        setForm({
+          periodo: toMonthInputValue(p), // <-- 'YYYY-MM'
+          // periodoLabel: toMonthLabel(p ?? new Date()),
+          PresMen: '',
+          VentMenOtrIng: '',
+          venMenCer: '',
+          otrIngr: '',
+        });
+      } catch (e) {
+        if (!cancel) {
+          console.error('periodoActual falló:', e);
+          setForm({
+            periodo: monthToFirstDay(new Date()),
+            PresMen: '',
+            VentMenOtrIng: '',
+            venMenCer: '',
+            otrIngr: '',
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancel = true;
+    };
   }, [open, isEdit, initialValues, periodoActual]);
 
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -273,7 +306,7 @@ export default function IngresoVentaTotalModal({
                 InputProps={{ readOnly: !editablePeriodo }}
                 InputLabelProps={{ shrink: true }}
                 error={showErr('periodo')}
-                helperText={helpText('periodo', 'Ej: 2025-05')}
+                //helperText={helpText('periodo', 'Ej: 2025-05')}
               />
             </Grid>
 

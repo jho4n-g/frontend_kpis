@@ -5,7 +5,18 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import CssBaseline from '@mui/material/CssBaseline';
+import Tooltip from '@mui/material/Tooltip';
+import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
+import Badge from '@mui/material/Badge';
+import Avatar from '@mui/material/Avatar';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import Chip from '@mui/material/Chip';
 import { createTheme, alpha } from '@mui/material/styles';
+// Icons
+import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
 import SecurityIcon from '@mui/icons-material/Security';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -15,8 +26,13 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import MonetizationOn from '@mui/icons-material/MonetizationOn';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LightModeIcon from '@mui/icons-material/LightMode';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import LogoutIcon from '@mui/icons-material/Logout';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+
 import { AppProvider } from '@toolpad/core/AppProvider';
 import { DashboardLayout } from '@toolpad/core/DashboardLayout';
 import { DemoProvider } from '@toolpad/core/internal';
@@ -28,12 +44,17 @@ import {
   SignOutButton,
 } from '@toolpad/core/Account';
 
-/** ===================== TEMA: claro cálido + oscuro ===================== */
+/* ===================== THEME (colores intensos, verde corporativo) ===================== */
 const makeTheme = (mode) =>
   createTheme({
     palette: {
       mode,
-      primary: { main: '#006633' },
+      primary: { main: '#006633', contrastText: '#FFFFFF' },
+      secondary: { main: '#6E33FF', contrastText: '#FFFFFF' },
+      info: { main: '#2D6BFF', contrastText: '#FFFFFF' },
+      success: { main: '#00C853', contrastText: '#FFFFFF' },
+      warning: { main: '#FFAB00', contrastText: '#1B1300' },
+      error: { main: '#FF3D00', contrastText: '#FFFFFF' },
       ...(mode === 'dark'
         ? {
             background: { default: '#0e1111', paper: '#111416' },
@@ -41,38 +62,40 @@ const makeTheme = (mode) =>
             text: { primary: '#EAEAEA', secondary: '#BDBDBD' },
           }
         : {
-            // Blanco cálido/crema para descansar la vista
-            background: { default: '#FAF7F2', paper: '#FFFDF8' },
-            divider: '#E7DED1',
-            text: { primary: '#1C1B19', secondary: '#5C574D' },
+            background: { default: '#F5F7FB', paper: '#FFFFFF' },
+            divider: '#E5E7EB',
+            text: { primary: '#0F172A', secondary: '#475569' },
           }),
+      action: {
+        selectedOpacity: 0.18,
+        hoverOpacity: 0.08,
+        focusOpacity: 0.12,
+        activatedOpacity: 0.2,
+      },
     },
-    shape: { borderRadius: 12 },
+    shape: { borderRadius: 14 },
     typography: {
       fontFamily:
         "'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-      h6: { fontWeight: 600 },
-      button: { textTransform: 'none', fontWeight: 600 },
+      h6: { fontWeight: 700 },
+      button: { textTransform: 'none', fontWeight: 700, letterSpacing: 0.2 },
+    },
+    custom: {
+      gradients: {
+        purple: 'linear-gradient(135deg, #6E33FF 0%, #4C17E2 100%)',
+        blue: 'linear-gradient(135deg, #1E88E5 0%, #1565C0 100%)',
+        cyan: 'linear-gradient(135deg, #00C6FF 0%, #0072FF 100%)',
+        green: 'linear-gradient(135deg, #006633 0%, #004d29 100%)',
+        orange: 'linear-gradient(135deg, #FF8F00 0%, #EF6C00 100%)',
+        red: 'linear-gradient(135deg, #FF3D00 0%, #D50000 100%)',
+      },
+      cardShadow: '0 12px 30px rgba(3,7,18,0.12)',
     },
     components: {
       MuiCssBaseline: {
         styleOverrides: (theme) => ({
           body:
-            theme.palette.mode === 'light'
-              ? {
-                  // Patrón sutil en modo claro (puedes quitarlo si no lo quieres)
-                  backgroundImage: `radial-gradient(${alpha(
-                    '#006633',
-                    0.03
-                  )} 1px, transparent 1px),
-                                    radial-gradient(${alpha(
-                                      '#8B6B3E',
-                                      0.02
-                                    )} 1px, transparent 1px)`,
-                  backgroundPosition: '0 0, 16px 16px',
-                  backgroundSize: '32px 32px',
-                }
-              : {},
+            theme.palette.mode === 'light' ? { backgroundImage: 'none' } : {},
         }),
       },
       MuiAppBar: {
@@ -82,8 +105,8 @@ const makeTheme = (mode) =>
             color: theme.palette.text.primary,
             boxShadow:
               theme.palette.mode === 'light'
-                ? '0 1px 2px rgba(0,0,0,0.06)'
-                : '0 1px 2px rgba(0,0,0,0.4)',
+                ? '0 2px 8px rgba(2,6,23,0.06)'
+                : '0 2px 8px rgba(2,6,23,0.35)',
             borderBottom: `1px solid ${theme.palette.divider}`,
           }),
         },
@@ -96,9 +119,6 @@ const makeTheme = (mode) =>
           }),
         },
       },
-      MuiPaper: {
-        styleOverrides: { root: { backgroundImage: 'none' } },
-      },
       MuiListItemButton: {
         styleOverrides: {
           root: ({ theme }) => ({
@@ -109,160 +129,201 @@ const makeTheme = (mode) =>
             '&.Mui-selected': {
               backgroundColor: alpha(
                 theme.palette.primary.main,
-                theme.palette.mode === 'light' ? 0.1 : 0.2
+                theme.palette.mode === 'light' ? 0.18 : 0.28
               ),
               '&:hover': {
                 backgroundColor: alpha(
                   theme.palette.primary.main,
-                  theme.palette.mode === 'light' ? 0.16 : 0.28
+                  theme.palette.mode === 'light' ? 0.24 : 0.34
                 ),
               },
             },
           }),
         },
       },
+      MuiChip: {
+        variants: [
+          {
+            props: { variant: 'soft' },
+            style: ({ theme }) => ({
+              backgroundColor: alpha(theme.palette.primary.main, 0.08),
+              color: theme.palette.primary.main,
+              borderRadius: 12,
+              '&.MuiChip-colorInfo': {
+                backgroundColor: alpha(theme.palette.info.main, 0.08),
+                color: theme.palette.info.main,
+              },
+            }),
+          },
+        ],
+      },
+      MuiButton: {
+        styleOverrides: {
+          containedPrimary: { boxShadow: '0 8px 18px rgba(0,102,51,0.28)' },
+          containedSecondary: { boxShadow: '0 8px 18px rgba(110,51,255,0.32)' },
+        },
+      },
     },
   });
 
-const demoSession = {
-  user: { name: 'Usuario Activo', email: 'user@example.com', image: '' },
-};
-
-export default function HomePage({ window }) {
+/* =========================== APP SHELL =========================== */
+export default function AppShell({ window }) {
   const navigate = useNavigate();
   const location = useLocation();
   const appWindow = window !== undefined ? window() : undefined;
 
-  // ======== MODE (toggle claro/oscuro, persistido en localStorage) ========
+  // modo / sesión (igual)
   const [mode, setMode] = React.useState(() => {
     const saved = localStorage.getItem('intranet_mode');
-    return saved === 'dark' || saved === 'light' ? saved : 'light'; // inicia en claro cálido
+    return saved === 'dark' || saved === 'light' ? saved : 'light';
   });
-  React.useEffect(() => {
-    localStorage.setItem('intranet_mode', mode);
-  }, [mode]);
-
+  React.useEffect(() => localStorage.setItem('intranet_mode', mode), [mode]);
   const theme = React.useMemo(() => makeTheme(mode), [mode]);
 
-  const [session, setSession] = React.useState(demoSession);
+  const [session, setSession] = React.useState({
+    user: { name: 'Usuario Activo', email: 'user@example.com' },
+  });
   const authentication = React.useMemo(
     () => ({
-      signIn: () => setSession(demoSession),
+      signIn: () =>
+        setSession({
+          user: { name: 'Usuario Activo', email: 'user@example.com' },
+        }),
       signOut: () => setSession(null),
     }),
     []
   );
 
-  // 🔗 Navegación
+  // ====== Navegación con SUBMENÚS ======
   const NAVIGATION = [
-    { segment: 'utilidad', title: 'Utilidad', icon: <PeopleIcon /> },
+    { kind: 'header', title: 'Dashboard' },
+    {
+      segment: 'precioUnitario',
+      title: 'Precio Unitario',
+      icon: <AssignmentIcon />,
+    },
+
+    { kind: 'header', title: 'Gestión Comercial' },
     {
       segment: 'ventasTotales',
       title: 'Ventas Totales',
-      icon: <SecurityIcon />,
+      icon: <TableChartIcon />,
     },
     {
-      title: 'Ingreso por venta totales',
-      icon: <MonetizationOn />,
+      title: 'Ingresos',
+      icon: <DescriptionIcon />,
       children: [
         {
           segment: 'ingresoVentasTotales',
           title: 'Registro',
-          icon: <DescriptionIcon />,
+          icon: <TableChartIcon />,
         },
         {
           segment: 'ingresoVentasTotales/kpis',
-          title: 'KPI',
-          icon: <DescriptionIcon />,
+          title: 'KPIs',
+          icon: <BarChartIcon />,
         },
       ],
     },
-    {
-      segment: 'precioUnitario',
-      title: 'Precio Unitario',
-      icon: <LocalOfferIcon />,
-    },
-    { segment: 'prueba', title: 'Documentos', icon: <DescriptionIcon /> },
-    { segment: '#2', title: 'Socios', icon: <GroupIcon /> },
-    { segment: '#3', title: 'Sucursales', icon: <BusinessIcon /> },
+
+    { kind: 'header', title: 'Personas y Sucursales' },
+    { segment: 'prueba', title: 'Colaboradores', icon: <GroupIcon /> },
+    { segment: 'roles', title: 'Roles y Permisos', icon: <SecurityIcon /> },
+    { segment: 'sucursales', title: 'Sucursales', icon: <BusinessIcon /> },
+
+    { kind: 'divider' },
+
+    { kind: 'header', title: 'Documentos' },
+    { segment: 'documentos', title: 'Documentos', icon: <DescriptionIcon /> },
   ];
 
-  // AppBar actions: botón para cambiar el modo
-  function CustomToolbarActions() {
+  /* --------- Acciones del AppBar (derecha): notific., modo y perfil --------- */
+  function ToolbarActions() {
+    const [anchorEl, setAnchorEl] = React.useState(null);
+    const open = Boolean(anchorEl);
+    const handleOpen = (e) => setAnchorEl(e.currentTarget);
+    const handleClose = () => setAnchorEl(null);
+
     return (
       <Stack
         direction="row"
         alignItems="center"
-        spacing={1}
-        sx={{ width: '100%' }}
+        spacing={1.5}
+        sx={{ ml: 'auto' }}
       >
-        <Box sx={{ flex: 1 }} />
-        <Button
-          variant="outlined"
+        <Tooltip title="Notificaciones">
+          <IconButton>
+            <Badge variant="dot" color="error">
+              <NotificationsNoneIcon />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+
+        <Chip
+          variant="soft"
           size="small"
-          startIcon={mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+          label={mode === 'dark' ? 'Oscuro' : 'Claro'}
           onClick={() => setMode((m) => (m === 'dark' ? 'light' : 'dark'))}
-        >
-          {mode === 'dark' ? 'Fondo claro' : 'Fondo oscuro'}
-        </Button>
-      </Stack>
-    );
-  }
-
-  // 👤 Footer de cuenta
-  function SidebarFooterAccount({ mini }) {
-    const PreviewComponent = React.useMemo(
-      () => (props) => (
-        <AccountPreview
-          {...props}
-          variant={mini ? 'condensed' : 'expanded'}
-          sx={{ p: 1 }}
+          onDelete={() => setMode((m) => (m === 'dark' ? 'light' : 'dark'))}
+          deleteIcon={mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+          sx={{ mr: 0.5 }}
         />
-      ),
-      [mini]
-    );
 
-    function SidebarPopoverContent({ close }) {
-      return (
-        <Stack direction="column" spacing={1} sx={{ p: 1.25, minWidth: 220 }}>
-          <Button
-            fullWidth
-            variant="text"
+        <Tooltip title="Cuenta">
+          <IconButton onClick={handleOpen} size="small" sx={{ ml: 0.5 }}>
+            <Avatar sx={{ width: 34, height: 34 }}>UA</Avatar>
+          </IconButton>
+        </Tooltip>
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <MenuItem disabled>
+            <ListItemIcon>
+              <AccountCircleIcon fontSize="small" />
+            </ListItemIcon>
+            {session?.user?.name || 'Usuario'}
+          </MenuItem>
+          <Divider />
+          <MenuItem
             onClick={() => {
-              navigate('/utilidad');
-              close();
+              navigate('/perfil');
+              handleClose();
             }}
-            sx={{ justifyContent: 'flex-start', gap: 1 }}
           >
-            <SettingsIcon fontSize="small" />
+            <ListItemIcon>
+              <SettingsIcon fontSize="small" />
+            </ListItemIcon>
+            Perfil y preferencias
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              navigate('/ajustes');
+              handleClose();
+            }}
+          >
+            <ListItemIcon>
+              <SettingsIcon fontSize="small" />
+            </ListItemIcon>
             Configuración
-          </Button>
-
-          <AccountPopoverFooter>
-            <SignOutButton
-              onClick={authentication.signOut}
-              slotProps={{
-                button: {
-                  children: 'Cerrar sesión',
-                  color: 'error',
-                  variant: 'outlined',
-                },
-              }}
-            />
-          </AccountPopoverFooter>
-        </Stack>
-      );
-    }
-
-    return (
-      <Account
-        slotProps={{ preview: { variant: mini ? 'condensed' : 'expanded' } }}
-        localeText={{ accountSignOutLabel: 'Cerrar sesión' }}
-        slots={{
-          preview: PreviewComponent,
-          popoverContent: SidebarPopoverContent,
-        }}
-      />
+          </MenuItem>
+          <Divider />
+          <MenuItem
+            onClick={() => {
+              authentication.signOut();
+              handleClose();
+            }}
+          >
+            <ListItemIcon>
+              <LogoutIcon fontSize="small" />
+            </ListItemIcon>
+            Cerrar sesión
+          </MenuItem>
+        </Menu>
+      </Stack>
     );
   }
 
@@ -294,15 +355,73 @@ export default function HomePage({ window }) {
         <CssBaseline />
         <DashboardLayout
           slots={{
-            toolbarActions: CustomToolbarActions,
-            sidebarFooter: SidebarFooterAccount,
+            toolbarActions: ToolbarActions,
+            // CAMBIO: sidebarFooter eliminado para que no aparezca el usuario en el lateral
+          }}
+          slotProps={{
+            // CAMBIO: estilizado del SIDEBAR para verse como la 2ª imagen
+            sidebar: {
+              sx: {
+                p: 0,
+                '& .MuiDrawer-paper': {
+                  width: 268, // ancho cómodo tipo Berry
+                },
+                // Headers de sección
+                '& .MuiListSubheader-root': {
+                  fontSize: 11,
+                  letterSpacing: 0.8,
+                  textTransform: 'uppercase',
+                  fontWeight: 800,
+                  color: 'text.secondary',
+                  lineHeight: 2.2,
+                },
+                // Items
+                '& .MuiListItemButton-root': {
+                  mx: 1,
+                  my: 0.5,
+                  borderRadius: 2,
+                  py: 0.85,
+                  '& .MuiListItemIcon-root': {
+                    minWidth: 36,
+                    color: 'text.secondary',
+                  },
+                  '& .MuiTypography-root': { fontWeight: 600 },
+                  '&:hover': {
+                    bgcolor: (t) =>
+                      alpha(
+                        t.palette.primary.main,
+                        t.palette.mode === 'light' ? 0.08 : 0.18
+                      ),
+                  },
+                  '&.Mui-selected': {
+                    bgcolor: (t) =>
+                      alpha(
+                        t.palette.secondary.main,
+                        t.palette.mode === 'light' ? 0.16 : 0.24
+                      ),
+                    color: 'text.primary',
+                    '& .MuiListItemIcon-root': { color: 'inherit' },
+                    '&:hover': {
+                      bgcolor: (t) =>
+                        alpha(
+                          t.palette.secondary.main,
+                          t.palette.mode === 'light' ? 0.22 : 0.3
+                        ),
+                    },
+                  },
+                },
+                // Indentación de submenus (2º nivel)
+                '& .MuiCollapse-root .MuiListItemButton-root': {
+                  pl: 3,
+                },
+              },
+            },
           }}
           sx={{
-            '& .MuiDrawer-paper': { p: 0 },
             bgcolor: 'background.default',
+            '& .MuiDrawer-paper': { p: 0 },
           }}
         >
-          {/* Lienzo de contenido */}
           <Box
             sx={{
               p: { xs: 2, sm: 3 },
@@ -310,7 +429,6 @@ export default function HomePage({ window }) {
               bgcolor: 'background.default',
             }}
           >
-            {/* Tarjeta principal */}
             <Box
               sx={{
                 backgroundColor: 'background.paper',
@@ -333,4 +451,4 @@ export default function HomePage({ window }) {
   );
 }
 
-HomePage.propTypes = { window: PropTypes.func };
+AppShell.propTypes = { window: PropTypes.func };

@@ -1,4 +1,4 @@
-import React, { use, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Paper,
@@ -34,6 +34,7 @@ import {
 } from '../service/precioUnitario.js';
 import PrecioUnitarioModal from '../components/PrecioUnitario/PrecioUnitarioModal.jsx';
 import PrecioUnitarioECharts from '../components/PrecioUnitario/PrecioUnitarioECharts.jsx';
+import AxisBreakBarChart from '../components/GraficoReutilizables/AxisBreakBarChart.jsx';
 
 import {
   formatMonthYear,
@@ -108,7 +109,15 @@ const columns = [
     format: formatPercent,
   },
 ];
-
+const seriesPU = [
+  { name: 'Presupuesto [Bs.]', key: 'presMen', color: '#1976d2' },
+  { name: 'Precio promedio [Bs.]', key: 'precProm', color: '#ef6c00' },
+  { name: 'Región Centro [Bs.]', key: 'regionCentro', color: '#2e7d32' },
+  { name: 'Región Este [Bs.]', key: 'regionEste', color: '#0288d1' },
+  { name: 'Región Oeste [Bs.]', key: 'regionOeste', color: '#6a1b9a' },
+  { name: 'Fábrica [Bs.]', key: 'fabrica', color: '#455a64' },
+  { name: 'Exportación [Bs.]', key: 'exportacion', color: '#9c27b0' },
+];
 export default function PrecioUnitarioPage() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -509,7 +518,13 @@ export default function PrecioUnitarioPage() {
         </Paper>
 
         <Paper>
-          <PrecioUnitarioECharts rows={valorsTabla} />
+          <AxisBreakBarChart
+            title="PRECIO UNITARIO (Bs.)"
+            rows={valorsTabla}
+            xKey={(r) => r.mes || formatMonthYear(r.periodo)}
+            xDimName="Mes"
+            series={seriesPU}
+          />
         </Paper>
       </Stack>
     </Paper>

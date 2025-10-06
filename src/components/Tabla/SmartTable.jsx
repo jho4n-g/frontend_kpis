@@ -403,12 +403,7 @@ export default function ReusableKpiTable({
     zIndex: 3,
   };
   const sxHeadTop1 = { top: 0, height: HEADER_ROW1, ...sxStickyBase };
-  const sxLeftStickyHead = {
-    ...sxStickyBase,
-    left: 0,
-    boxShadow: (t) => `2px 0 0 ${t.palette.divider} inset`,
-    zIndex: 6,
-  };
+
   const sxRightStickyHead = {
     ...sxStickyBase,
     right: 0,
@@ -800,7 +795,27 @@ export default function ReusableKpiTable({
 
                 {/* Fila 2: encabezados reales */}
                 <TableRow>
-                  {visibleOrdered.map((col, idx) => (
+                  {/* Columna 0 fija */}
+                  {visibleOrdered[0] && (
+                    <TableCell
+                      key={visibleOrdered[0].id}
+                      align={visibleOrdered[0].align}
+                      sx={{
+                        position: 'sticky',
+                        top: HEADER_ROW1,
+                        left: 0, // fija a la izquierda
+                        bgcolor: 'background.paper',
+                        zIndex: 8, // > que el resto del header
+                        minWidth: visibleOrdered[0].minWidth,
+                        boxShadow: (t) => `2px 0 0 ${t.palette.divider} inset`,
+                      }}
+                    >
+                      {visibleOrdered[0].label}
+                    </TableCell>
+                  )}
+
+                  {/* Resto de columnas */}
+                  {visibleOrdered.slice(1).map((col) => (
                     <TableCell
                       key={col.id}
                       align={col.align}
@@ -810,12 +825,12 @@ export default function ReusableKpiTable({
                         bgcolor: 'background.paper',
                         zIndex: 6,
                         minWidth: col.minWidth,
-                        ...(idx === 0 ? sxLeftStickyHead : {}),
                       }}
                     >
                       {col.label}
                     </TableCell>
                   ))}
+
                   {(onEditRow || EditDialog) && (
                     <TableCell
                       align="center"
@@ -824,7 +839,7 @@ export default function ReusableKpiTable({
                         top: HEADER_ROW1,
                         right: 0,
                         bgcolor: 'background.paper',
-                        zIndex: 6,
+                        zIndex: 8,
                         minWidth: 120,
                       }}
                     >

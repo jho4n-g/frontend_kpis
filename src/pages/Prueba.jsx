@@ -1,3 +1,5 @@
+import { Paper, Stack } from '@mui/material';
+
 import IngresoVentaTotalModal from '../components/IngresoVentaTotal/IngresoVentaTotalModal.jsx';
 import {
   getAll,
@@ -12,6 +14,8 @@ import {
 import ReusableKpiTable from '../components/Tabla/SmartTable.jsx';
 import { useState, useCallback, useEffect } from 'react';
 import IngresoTotalECharts from '../components/graficos/IngresoTotalECharts.jsx';
+import CumplimientoECharts from '../components/graficos/CumplimientoECharts.jsx';
+import ReusablePercentChart from '../components/GraficoReutilizables/ReusablePercentChart.jsx';
 import { getPeriodo } from '../service/libs.js';
 const GROUPS = [
   { id: 'mensuales', label: 'Ingresos mensuales' },
@@ -164,51 +168,99 @@ const PRESET_VIEWS = {
   },
   Todo: { visible: columns.map((c) => c.id) },
 };
+//graficas
+const series = [
+  {
+    name: 'Cumpl. Mensual Cerámica',
+    key: 'cumplMenCeramica',
+    type: 'bar',
+    color: '#37833bff',
+    labelInside: true,
+  },
+  {
+    name: 'Cumpl. Otros Ingresos Acum. vs Acum. Presupuesto',
+    key: 'cumplOtrosIngrAcuvsAcumPres',
+    type: 'bar',
+    color: '#22527cff',
+    labelInside: true,
+  },
+  {
+    name: 'Meta',
+    type: 'line',
+    dashed: true,
+    color: '#994444ff',
+    // lee meta con coma o aplica 0.9 por defecto
+    accessor: (r) => {
+      const m = Number(String(r?.meta).replace(',', '.'));
+      return Number.isFinite(m) && m > 0 ? m : 0.9;
+    },
+  },
+];
 
 export default function IngresoVentasTotalesPage() {
   const [data, setData] = useState([]);
   const [open, setOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [datosGrafic, setDatosGrafic] = useState([]);
+  const [datosCum, setDatoscum] = useState([]);
   const reload = useCallback(async () => {
     const resp = await getAll();
     setData(Array.isArray(resp) ? resp : (resp?.normalizados ?? []));
     setDatosGrafic(Array.isArray(resp) ? resp : (resp?.valores ?? []));
+    setDatoscum(Array.isArray(resp) ? resp : (resp?.graficaCumplimiento ?? []));
+    console.log(resp.graficaCumplimiento);
   }, []);
   useEffect(() => {
     reload();
   }, [reload]);
   return (
     <>
-      <ReusableKpiTable
-        title="INGRESO POR VENTA TOTALES"
-        lsKeyPrefix="ivt"
-        groups={GROUPS}
-        columns={columns}
-        presetViews={PRESET_VIEWS}
-        data={data}
-        onRegister={() => {
-          setSelectedRow(null);
-          setOpen(true);
-        }}
-        onEditRow={(row) => {
-          setSelectedRow(row);
-          setOpen(true);
-        }}
-      />
-      <IngresoVentaTotalModal
-        open={open}
-        onClose={() => setOpen(false)}
-        initialValues={selectedRow}
-        onSuccess={async () => {
-          setOpen(false);
-          await reload();
-        }}
-        createFn={CreateObje}
-        updateFn={UpdateObje}
-        periodoActual={getPeriodo}
-      />
-      {datosGrafic.length > 0 && <IngresoTotalECharts rows={datosGrafic} />}
+      <Stack spacing={3}>
+        <Paper>
+          <ReusableKpiTable
+            title="INGRESO POR VENTA TOTALES"
+            lsKeyPrefix="ivt"
+            groups={GROUPS}
+            columns={columns}
+            presetViews={PRESET_VIEWS}
+            data={data}
+            onRegister={() => {
+              setSelectedRow(null);
+              setOpen(true);
+            }}
+            onEditRow={(row) => {
+              setSelectedRow(row);
+              setOpen(true);
+            }}
+          />
+          <IngresoVentaTotalModal
+            open={open}
+            onClose={() => setOpen(false)}
+            initialValues={selectedRow}
+            onSuccess={async () => {
+              setOpen(false);
+              await reload();
+            }}
+            createFn={CreateObje}
+            updateFn={UpdateObje}
+            periodoActual={getPeriodo}
+          />
+        </Paper>
+        <Paper>
+          {datosGrafic.length > 0 && <IngresoTotalECharts rows={datosGrafic} />}
+        </Paper>
+        <Paper>
+          <CumplimientoECharts rows={datosCum} metaDefault={90} />
+        </Paper>
+        <Paper>
+          <ReusablePercentChart
+            title="CUMPLIMIENTO (%)"
+            rows={datosCum}
+            xKey="mes"
+            series={series}
+          />
+        </Paper>
+      </Stack>
     </>
   );
 }
