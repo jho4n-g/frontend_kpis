@@ -2,11 +2,14 @@ import { Routes, BrowserRouter, Route, Navigate } from 'react-router';
 import HomePage from './pages/HomePage';
 import UtilidaPage from './pages/UtilidadPage';
 import VentasTotalesPage from './pages/VentasTotalesPage';
-import IngresoVentasTotales from './pages/IngresoVentasTotales';
+//import IngresoVentasTotales from './pages/IngresoVentasTotales';
 import Ingreso from './copy/IngresoVentasTotales';
-import PrecioUnitarioPage from './pages/PrecioUnitarioPage';
 import KPIsMensuales from './components/IngresoVentaTotal/KPIsMensuales';
-import Prueba from './pages/Prueba';
+//import IngresoVentasTotalesPage from './pages/IngresoVentasTotalesPage';
+//Indicadores
+import PrecioUnitarioDosPage from './pages/IndicadoresDespempeño/PrecioUnitarioPage';
+import IngresoVentasTotalesPage from './pages/IndicadoresDespempeño/IngresoVentasTotalesPage';
+import CalidadPage from './pages/IndicadoresDespempeño/CalidadPage';
 
 function App() {
   return (
@@ -16,14 +19,15 @@ function App() {
           <Route index element={<Navigate to="/utilidad" replace />} />
           <Route path="utilidad" element={<UtilidaPage />} />
           <Route path="ventasTotales" element={<VentasTotalesPage />} />
+          <Route path="ingresoVentasTotales/kpis" element={<KPIsMensuales />} />
+          <Route path="ingreso" element={<Ingreso />} />
+          {/* Indicadores de desempeño */}
+          <Route path="precioUnitarioDos" element={<PrecioUnitarioDosPage />} />
           <Route
             path="ingresoVentasTotales"
-            element={<IngresoVentasTotales />}
+            element={<IngresoVentasTotalesPage />}
           />
-          <Route path="ingresoVentasTotales/kpis" element={<KPIsMensuales />} />
-          <Route path="precioUnitario" element={<PrecioUnitarioPage />} />
-          <Route path="ingreso" element={<Ingreso />} />
-          <Route path="prueba" element={<Prueba />} />
+          <Route path="calidad" element={<CalidadPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -147,7 +147,7 @@ export default function PrecioUnitarioPage() {
       const normalizados = resp?.normalizados ?? [];
       const valores = resp?.valores ?? [];
       const ValCum = resp?.graficaCumplimiento ?? [];
-      console.log('PrecioUnitario', normalizados);
+      //console.log('PrecioUnitario', normalizados);
       setRows(normalizados);
       setValoresTabla(valores);
       //console.log('***********', ValCum);

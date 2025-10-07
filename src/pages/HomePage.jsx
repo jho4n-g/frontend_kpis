@@ -14,6 +14,8 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import Chip from '@mui/material/Chip';
+import AttachMoney from '@mui/icons-material/AttachMoney';
+import { BarChart } from '@mui/icons-material';
 import { createTheme, alpha } from '@mui/material/styles';
 // Icons
 import MenuIcon from '@mui/icons-material/Menu';
@@ -196,22 +198,22 @@ export default function AppShell({ window }) {
 
   // ====== Navegación con SUBMENÚS ======
   const NAVIGATION = [
-    { kind: 'header', title: 'Dashboard' },
+    { kind: 'header', title: 'Gestion de usuarios' },
     {
-      segment: 'precioUnitario',
-      title: 'Precio Unitario',
+      segment: 'utilidad',
+      title: 'Utilidades',
       icon: <AssignmentIcon />,
     },
 
-    { kind: 'header', title: 'Gestión Comercial' },
+    { kind: 'header', title: 'Indicadores de desempeño' },
     {
       segment: 'ventasTotales',
       title: 'Ventas Totales',
       icon: <TableChartIcon />,
     },
     {
-      title: 'Ingresos',
-      icon: <DescriptionIcon />,
+      title: 'Ingreso Ventas Totales',
+      icon: <BusinessIcon />,
       children: [
         {
           segment: 'ingresoVentasTotales',
@@ -225,11 +227,24 @@ export default function AppShell({ window }) {
         },
       ],
     },
+    {
+      title: 'Precio Unitario',
+      icon: <AttachMoney />,
+      children: [
+        {
+          segment: 'precioUnitarioDos',
+          title: 'Registro',
+          icon: <TableChartIcon />,
+        },
+      ],
+    },
 
     { kind: 'header', title: 'Personas y Sucursales' },
-    { segment: 'prueba', title: 'Colaboradores', icon: <GroupIcon /> },
-    { segment: 'roles', title: 'Roles y Permisos', icon: <SecurityIcon /> },
-    { segment: 'sucursales', title: 'Sucursales', icon: <BusinessIcon /> },
+    {
+      segment: 'calidad',
+      title: 'Calidad',
+      icon: <GroupIcon />,
+    },
 
     { kind: 'divider' },
 

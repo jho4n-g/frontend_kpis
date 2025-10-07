@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -11,7 +11,7 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
-import { formatNumber } from '../../lib/convert';
+import { formatNumber, formatMonthYear } from '../../lib/convert';
 
 // ---- Helpers ----
 const toMonthInputValue = (value) => {
@@ -28,7 +28,7 @@ const toMonthInputValue = (value) => {
 };
 const monthToFirstDay = (m) => (m ? `${m}-01` : null);
 
-// numérico robusto: quita espacios, cambia coma por punto, mantiene solo dígitos y punto
+// numérico robusto
 const sanitizeInput = (s) =>
   String(s ?? '')
     .replace(/,/g, '.')
@@ -40,7 +40,7 @@ const parseInputNumber = (str) => {
   return Number.isFinite(n) ? n : null;
 };
 const numericKeyFilter = (e) => {
-  const allowedChars = '0123456789. ';
+  const allowed = '0123456789. ';
   const ctrl = [
     'Backspace',
     'Delete',
@@ -52,7 +52,7 @@ const numericKeyFilter = (e) => {
     'Enter',
   ];
   if (e.ctrlKey || e.metaKey || e.altKey || ctrl.includes(e.key)) return;
-  if (e.key.length === 1 && !allowedChars.includes(e.key)) e.preventDefault();
+  if (e.key.length === 1 && !allowed.includes(e.key)) e.preventDefault();
 };
 
 export default function PrecioUnitarioModal({
@@ -63,23 +63,19 @@ export default function PrecioUnitarioModal({
   createFn, // (payload) => Promise
   updateFn, // (id, payload) => Promise
   idKey = 'id',
-  editablePeriodo = false,
-  periodoAcual,
+  // editablePeriodo = false,   // <- ya no lo usamos; el periodo es NO editable siempre
+  getPeriodoActual, // <- RENOMBRADO (antes "periodoAcual"): () => Promise<'YYYY-MM'|'YYYY-MM-DD'|Date|string>
 }) {
   const isEdit = !!initialValues;
 
   const [saving, setSaving] = useState(false);
   const [rootError, setRootError] = useState('');
-
   const [showErrors, setShowErrors] = useState(false);
   const [touched, setTouched] = useState({});
   const markTouched = (k) => setTouched((t) => ({ ...t, [k]: true }));
 
-  const hasErr = (k) => (showErrors || touched[k]) && !!errors[k];
-  const help = (k, placeholder) => (hasErr(k) ? errors[k] : placeholder);
-
   const [form, setForm] = useState({
-    periodo: '', // YYYY-MM
+    periodo: '', // YYYY-MM (controlado y NO editable en UI)
     presMen: '',
     precProm: '',
     regionCentro: '',
@@ -89,12 +85,17 @@ export default function PrecioUnitarioModal({
     exportacion: '',
   });
 
+  const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Carga/Inicialización del formulario
   useEffect(() => {
     if (!open) return;
     setShowErrors(false);
     setTouched({});
     setRootError('');
+
     if (isEdit) {
+      // En edición: mostramos el periodo pero NO editable
       setForm({
         periodo: toMonthInputValue(initialValues?.periodo),
         presMen:
@@ -126,28 +127,41 @@ export default function PrecioUnitarioModal({
             ? formatNumber(initialValues.exportacion)
             : '',
       });
-    } else {
-      const per =
-        toMonthInputValue(periodoAcual) || toMonthInputValue(new Date());
-      setForm({
-        periodo: per,
-        presMen: '',
-        precProm: '',
-        regionCentro: '',
-        regionEste: '',
-        regionOeste: '',
-        fabrica: '',
-        exportacion: '',
-      });
+      return;
     }
-  }, [open, isEdit, initialValues, periodoAcual]);
 
-  const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+    // En crear: obtenemos el periodo actual por servicio y lo fijamos (NO editable)
+    let cancel = false;
+    (async () => {
+      try {
+        const per = (await getPeriodoActual?.()) ?? '';
+        if (cancel) return;
+        setForm((f) => ({
+          ...f,
+          periodo: toMonthInputValue(per),
+          presMen: '',
+          precProm: '',
+          regionCentro: '',
+          regionEste: '',
+          regionOeste: '',
+          fabrica: '',
+          exportacion: '',
+        }));
+      } catch {
+        if (!cancel) {
+          setForm((f) => ({ ...f, periodo: '' }));
+        }
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [open, isEdit, initialValues, getPeriodoActual]);
 
   // Validaciones
   const errors = useMemo(() => {
     const e = {};
-    if (!form.periodo && !isEdit) e.periodo = 'Periodo es requerido';
+    if (!form.periodo) e.periodo = 'Periodo es requerido';
     const requiredFields = [
       ['presMen', 'Presupuesto mensual'],
       ['precProm', 'Precio promedio'],
@@ -162,11 +176,11 @@ export default function PrecioUnitarioModal({
       if (!Number.isFinite(n)) e[k] = `${label} inválido`;
     }
     return e;
-  }, [form, isEdit]);
+  }, [form]);
 
   const isValid = useMemo(() => Object.keys(errors).length === 0, [errors]);
 
-  // precálculo visible del cumplimiento mensual (solo lectura)
+  // Preview del cumplimiento mensual (solo lectura)
   const cumplimientoMensual = useMemo(() => {
     const pres = parseInputNumber(form.presMen);
     const prom = parseInputNumber(form.precProm);
@@ -180,7 +194,6 @@ export default function PrecioUnitarioModal({
 
   const onChangeNumber = (key) => (e) => {
     const clean = sanitizeInput(e.target.value);
-    // evitar más de un punto
     const dots = (clean.match(/\./g) || []).length;
     if (dots > 1) return;
     setField(key, clean);
@@ -188,9 +201,8 @@ export default function PrecioUnitarioModal({
 
   const handleSave = async () => {
     setRootError('');
-
     if (!isValid) {
-      setShowErrors(true); // ✅ fuerza a mostrar errores
+      setShowErrors(true);
       setTouched({
         presMen: true,
         precProm: true,
@@ -200,7 +212,7 @@ export default function PrecioUnitarioModal({
         fabrica: true,
         exportacion: true,
         periodo: true,
-      }); // opcional: marca todo como tocado
+      });
       setRootError('Revisa los campos marcados.');
       return;
     }
@@ -219,16 +231,13 @@ export default function PrecioUnitarioModal({
       setSaving(true);
       if (isEdit && updateFn) {
         const id = initialValues?.[idKey];
-        console.log(numbers);
-        // ⛔️ En UPDATE no mandamos periodo (tu backend lo recalcula/protege)
+        // ⛔️ En UPDATE NO mandamos periodo
         await updateFn(id, numbers);
       } else if (createFn) {
         await createFn({
-          periodo: monthToFirstDay(form.periodo), // ✅ CREATE: aquí sí
+          periodo: monthToFirstDay(form.periodo), // ✅ en CREATE sí mandamos el periodo
           ...numbers,
         });
-      } else {
-        console.log('Payload (demo):', { isEdit, ...numbers });
       }
       onClose?.();
       onSuccess?.();
@@ -239,6 +248,12 @@ export default function PrecioUnitarioModal({
       setSaving(false);
     }
   };
+
+  const displayPeriodo = React.useMemo(() => {
+    if (!form.periodo) return '';
+    // Si tu formatMonthYear ya devuelve "Mayo 2025", lo pasamos a minúsculas:
+    return formatMonthYear(form.periodo).toLowerCase(); // → "mayo 2025"
+  }, [form.periodo]);
 
   return (
     <Dialog
@@ -263,9 +278,10 @@ export default function PrecioUnitarioModal({
               label="Periodo (mes/año)"
               type="month"
               fullWidth
-              value={form.periodo}
-              onChange={(e) => setField('periodo', e.target.value)}
-              InputProps={{ readOnly: isEdit && !editablePeriodo }}
+              value={displayPeriodo}
+              // 🔒 NO editable en ningún caso
+              disabled
+              InputProps={{ readOnly: true }}
               InputLabelProps={{ shrink: true }}
               error={!!errors.periodo}
               helperText={errors.periodo || 'Ej: 2025-05'}
@@ -279,8 +295,10 @@ export default function PrecioUnitarioModal({
               value={formatNumber(form.presMen)}
               onChange={onChangeNumber('presMen')}
               onBlur={() => markTouched('presMen')}
-              error={hasErr('presMen')}
-              helperText={help('presMen', 'Ej: 12 345.67')}
+              error={(showErrors || touched.presMen) && !!errors.presMen}
+              helperText={
+                showErrors || touched.presMen ? errors.presMen : 'Ej: 12 345.67'
+              }
               inputProps={{ inputMode: 'decimal' }}
             />
           </Grid>
@@ -293,8 +311,12 @@ export default function PrecioUnitarioModal({
               onChange={onChangeNumber('precProm')}
               onKeyDown={numericKeyFilter}
               onBlur={() => markTouched('precProm')}
-              error={hasErr('precProm')}
-              helperText={help('precProm', 'Ej: 12 345.67')}
+              error={(showErrors || touched.precProm) && !!errors.precProm}
+              helperText={
+                showErrors || touched.precProm
+                  ? errors.precProm
+                  : 'Ej: 12 345.67'
+              }
               inputProps={{ inputMode: 'decimal' }}
             />
           </Grid>
@@ -307,8 +329,14 @@ export default function PrecioUnitarioModal({
               onChange={onChangeNumber('regionCentro')}
               onKeyDown={numericKeyFilter}
               onBlur={() => markTouched('regionCentro')}
-              error={hasErr('regionCentro')}
-              helperText={help('regionCentro', 'Ej: 12 345.67')}
+              error={
+                (showErrors || touched.regionCentro) && !!errors.regionCentro
+              }
+              helperText={
+                showErrors || touched.regionCentro
+                  ? errors.regionCentro
+                  : 'Ej: 12 345.67'
+              }
               inputProps={{ inputMode: 'decimal' }}
             />
           </Grid>
@@ -321,8 +349,12 @@ export default function PrecioUnitarioModal({
               onChange={onChangeNumber('regionEste')}
               onKeyDown={numericKeyFilter}
               onBlur={() => markTouched('regionEste')}
-              error={hasErr('regionEste')}
-              helperText={help('regionEste', 'Ej: 12 345.67')}
+              error={(showErrors || touched.regionEste) && !!errors.regionEste}
+              helperText={
+                showErrors || touched.regionEste
+                  ? errors.regionEste
+                  : 'Ej: 12 345.67'
+              }
               inputProps={{ inputMode: 'decimal' }}
             />
           </Grid>
@@ -335,8 +367,14 @@ export default function PrecioUnitarioModal({
               onChange={onChangeNumber('regionOeste')}
               onKeyDown={numericKeyFilter}
               onBlur={() => markTouched('regionOeste')}
-              error={hasErr('regionOeste')}
-              helperText={help('regionOeste', 'Ej: 12 345.67')}
+              error={
+                (showErrors || touched.regionOeste) && !!errors.regionOeste
+              }
+              helperText={
+                showErrors || touched.regionOeste
+                  ? errors.regionOeste
+                  : 'Ej: 12 345.67'
+              }
               inputProps={{ inputMode: 'decimal' }}
             />
           </Grid>
@@ -349,8 +387,10 @@ export default function PrecioUnitarioModal({
               onChange={onChangeNumber('fabrica')}
               onKeyDown={numericKeyFilter}
               onBlur={() => markTouched('fabrica')}
-              error={hasErr('fabrica')}
-              helperText={help('fabrica', 'Ej: 12 345.67')}
+              error={(showErrors || touched.fabrica) && !!errors.fabrica}
+              helperText={
+                showErrors || touched.fabrica ? errors.fabrica : 'Ej: 12 345.67'
+              }
               inputProps={{ inputMode: 'decimal' }}
             />
           </Grid>
@@ -363,8 +403,14 @@ export default function PrecioUnitarioModal({
               onChange={onChangeNumber('exportacion')}
               onKeyDown={numericKeyFilter}
               onBlur={() => markTouched('exportacion')}
-              error={hasErr('exportacion')}
-              helperText={help('exportacion', 'Ej: 12 345.67')}
+              error={
+                (showErrors || touched.exportacion) && !!errors.exportacion
+              }
+              helperText={
+                showErrors || touched.exportacion
+                  ? errors.exportacion
+                  : 'Ej: 12 345.67'
+              }
               inputProps={{ inputMode: 'decimal' }}
             />
           </Grid>
@@ -388,7 +434,6 @@ export default function PrecioUnitarioModal({
         <Button
           variant="contained"
           onClick={handleSave}
-          //disabled={saving || !isValid}
           startIcon={saving ? <CircularProgress size={16} /> : null}
         >
           {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar'}

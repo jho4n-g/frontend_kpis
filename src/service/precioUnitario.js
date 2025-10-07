@@ -12,13 +12,12 @@ const toNum = (v) => {
 function normalizarData(mes) {
   const iv = mes?.precioUnitarioMes;
   if (!iv) return null;
-  console.log(mes.periodo);
 
   return {
     id: Number(iv.id),
     id_mes: mes.id_mes,
     //numero: mes.numero,
-    periodo: formatMonthYear(mes.periodo),
+    periodo: iv.periodo,
     presMen: Number(iv.presMen) || 0,
     precProm: Number(iv.precProm) || 0,
     regionCentro: Number(iv.regionCentro) || 0,
@@ -63,18 +62,18 @@ export const getAll = async () => {
 
     const meses = extraerMeses(response.data);
     const valores = meses.map(normalizarDataTabla).filter(Boolean);
-    console.log(valores);
+    //console.log(valores);
 
     // Normaliza solo los que tienen ingresoVentas
     const normalizados = meses.map(normalizarData).filter(Boolean);
     // console.log('api', normalizados);
-
+    //console.log('Precio Unitario', valores);
     // // console.log(normalizados);
     // const graficaCumplimiento = meses
     //   .map(NormalizarGraficoCumplimiento)
     //   .filter(Boolean);
     // console.log('service', valores);
-    console.log('Despues de formater', valores);
+    //console.log('Despues de formater', valores);
 
     return { normalizados, valores };
   } catch (error) {
@@ -85,7 +84,7 @@ export const getAll = async () => {
 
 export const ObtenerPeriodo = async () => {
   try {
-    const obj = await api.get('/ventasTotales/gestion');
+    const obj = await api.get('/precioUnitario/periodo');
 
     return obj.data.periodo;
   } catch (err) {
