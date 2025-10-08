@@ -199,13 +199,13 @@ export default function AppShell({ window }) {
   // ====== Navegación con SUBMENÚS ======
   const NAVIGATION = [
     { kind: 'header', title: 'Gestion de usuarios' },
+
+    { kind: 'header', title: 'Indicadores de desempeño' },
     {
       segment: 'utilidad',
       title: 'Utilidades',
       icon: <AssignmentIcon />,
     },
-
-    { kind: 'header', title: 'Indicadores de desempeño' },
     {
       segment: 'ventasTotales',
       title: 'Ventas Totales',
@@ -238,18 +238,32 @@ export default function AppShell({ window }) {
         },
       ],
     },
-
-    { kind: 'header', title: 'Personas y Sucursales' },
     {
       segment: 'calidad',
       title: 'Calidad',
       icon: <GroupIcon />,
     },
+    {
+      segment: 'produccion',
+      title: 'Produccion',
+      icon: <GroupIcon />,
+    },
+    {
+      segment: 'visible',
+      title: 'Produccion',
+      icon: <GroupIcon />,
+    },
+    {
+      segment: 'disponibilidad',
+      title: 'Disponibilidad por linea',
+      icon: <GroupIcon />,
+    },
+
+    { kind: 'header', title: 'Personas y Sucursales' },
 
     { kind: 'divider' },
 
     { kind: 'header', title: 'Documentos' },
-    { segment: 'documentos', title: 'Documentos', icon: <DescriptionIcon /> },
   ];
 
   /* --------- Acciones del AppBar (derecha): notific., modo y perfil --------- */

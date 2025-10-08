@@ -82,7 +82,6 @@ function normalizarDesempeñoCascote(mes) {
   };
 }
 
-// Extrae el array de meses sin importar si el backend envía [{...}] o { mesesGestion: [...] }
 function extraerMeses(data) {
   if (Array.isArray(data)) return data; // el backend ya envía el array de meses
   if (Array.isArray(data?.mesesGestion)) return data.mesesGestion; // viene dentro de un objeto

@@ -68,12 +68,12 @@ export default function PrecioUnitarioMetaModal({
     });
   }, [open, initialMeta]);
 
-  // Validaciones
+  // Validaciones: ahora exige 1..100
   const errors = useMemo(() => {
     const e = {};
     const n = parseInputNumber(form.meta);
     if (!Number.isFinite(n)) e.meta = 'Meta inválida';
-    else if (n < 0) e.meta = 'Meta no puede ser negativa';
+    else if (n < 1 || n > 100) e.meta = 'La meta debe estar entre 1 y 100';
     return e;
   }, [form.meta]);
 
@@ -97,7 +97,9 @@ export default function PrecioUnitarioMetaModal({
       return;
     }
 
-    const payload = { meta: parseInputNumber(form.meta) ?? 0 };
+    // Enviar dividido entre 100
+    const n = parseInputNumber(form.meta) ?? 0;
+    const payload = { meta: n / 100 };
 
     try {
       setSaving(true);
@@ -131,14 +133,14 @@ export default function PrecioUnitarioMetaModal({
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <TextField
-              label="Meta"
+              label="Meta (1 a 100)"
               fullWidth
               value={form.meta}
               onChange={onChangeMeta}
               onKeyDown={numericKeyFilter}
               onBlur={() => markTouched('meta')}
               error={hasErr('meta')}
-              helperText={help('meta', 'Ej: 1.10, 0.85, 0.50')}
+              helperText={help('meta', 'Ej: 75 o 75.5')}
               inputProps={{ inputMode: 'decimal' }}
               autoFocus
             />

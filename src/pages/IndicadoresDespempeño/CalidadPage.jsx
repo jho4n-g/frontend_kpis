@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, use } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Paper, Stack } from '@mui/material';
 
 import {
@@ -365,7 +365,7 @@ export default function CalidadPage() {
     setDataCascote(
       Array.isArray(resp) ? resp : (resp?.valoresDesempeñoCascote ?? [])
     );
-    console.log('SSSS', resp.valoresDesempeñoCascote);
+    //console.log('SSSS', resp.valoresDesempeñoCascote);
   }, []);
   useEffect(() => {
     reload();

@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import { formatNumber, formatMonthYear } from '../../lib/convert';
 
-// --- Helpers ---
+// === Helpers reutilizados ===
 const toMonthInputValue = (value) => {
   if (!value) return '';
   if (typeof value === 'string') {
@@ -27,7 +27,6 @@ const toMonthInputValue = (value) => {
 };
 const monthToFirstDay = (m) => (m ? `${m}-01` : null);
 
-// 🔹 Limpia los espacios para enviar al backend
 const parseInputNumber = (str) => {
   if (!str) return null;
   const n = Number(String(str).replace(/\s+/g, '').replace(',', '.'));
@@ -50,18 +49,18 @@ const numericKeyFilter = (e) => {
   if (e.key.length === 1 && !allowed.includes(e.key)) e.preventDefault();
 };
 
-export default function CalidadModal({
+// === MODAL PRINCIPAL ===
+export default function ProduccionModal({
   open,
   onClose,
   onSuccess,
-  initialValues = null, // null => crear, objeto => editar
-  createFn, // (payload) => Promise
-  updateFn, // (id, payload) => Promise
+  initialValues = null,
+  createFn, // POST
+  updateFn, // PUT
   idKey = 'id',
-  getPeriodoCalidad, // función que retorna el próximo periodo desde backend
+  getPeriodoProduccion, // obtiene el próximo periodo
 }) {
   const isEdit = !!initialValues;
-  console.log('calidad', initialValues);
   const [saving, setSaving] = useState(false);
   const [rootError, setRootError] = useState('');
   const [showErrors, setShowErrors] = useState(false);
@@ -70,17 +69,13 @@ export default function CalidadModal({
 
   const [form, setForm] = useState({
     periodo: '',
-    produccionMensual: '',
-    presupusto: '',
-    produccionPrimeraMensual: '',
-    produccionSegundaMensual: '',
-    produccionTerceraMensual: '',
-    produccionCascoteMensual: '',
+    presu: '',
+    producMen: '',
   });
 
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  // --- Carga inicial ---
+  // === CARGA INICIAL ===
   useEffect(() => {
     if (!open) return;
     setShowErrors(false);
@@ -88,77 +83,46 @@ export default function CalidadModal({
     setRootError('');
 
     if (isEdit) {
-      // 🟢 EDICIÓN
+      // EDICIÓN
       setForm({
-        periodo: toMonthInputValue(
-          initialValues?.mesCalidad?.periodo || initialValues?.periodo
-        ),
-        produccionMensual:
-          initialValues?.produccionMensual != null
-            ? formatNumber(initialValues.produccionMensual)
-            : '',
-        presupusto:
-          initialValues?.presupusto != null
-            ? formatNumber(initialValues.presupusto)
-            : '',
-        produccionPrimeraMensual:
-          initialValues?.produccionPrimeraMensual != null
-            ? formatNumber(initialValues.produccionPrimeraMensual)
-            : '',
-        produccionSegundaMensual:
-          initialValues?.produccionSegundaMensual != null
-            ? formatNumber(initialValues.produccionSegundaMensual)
-            : '',
-        produccionTerceraMensual:
-          initialValues?.produccionTerceraMensual != null
-            ? formatNumber(initialValues.produccionTerceraMensual)
-            : '',
-        produccionCascoteMensual:
-          initialValues?.produccionCascoteMensual != null
-            ? formatNumber(initialValues.produccionCascoteMensual)
+        periodo: toMonthInputValue(initialValues?.periodo),
+        presu:
+          initialValues?.presu != null ? formatNumber(initialValues.presu) : '',
+        producMen:
+          initialValues?.producMen != null
+            ? formatNumber(initialValues.producMen)
             : '',
       });
       return;
     }
 
-    // 🟢 CREAR: obtener periodo desde backend
+    // CREAR — obtiene el próximo periodo
     let cancel = false;
     (async () => {
       try {
-        const data = await getPeriodoCalidad?.();
+        const data = await getPeriodoProduccion?.();
         if (cancel) return;
-        setForm((f) => ({
-          ...f,
+        setForm({
           periodo: toMonthInputValue(data?.periodo),
-          produccionMensual: '',
-          presupusto: '',
-          produccionPrimeraMensual: '',
-          produccionSegundaMensual: '',
-          produccionTerceraMensual: '',
-          produccionCascoteMensual: '',
-        }));
+          presu: '',
+          producMen: '',
+        });
       } catch (e) {
         console.error('❌ Error al obtener periodo:', e);
         if (!cancel) setForm((f) => ({ ...f, periodo: '' }));
       }
     })();
+
     return () => {
       cancel = true;
     };
-  }, [open, isEdit, initialValues, getPeriodoCalidad]);
+  }, [open, isEdit, initialValues, getPeriodoProduccion]);
 
-  // --- Validaciones ---
+  // === VALIDACIONES ===
   const errors = useMemo(() => {
     const e = {};
     if (!form.periodo) e.periodo = 'Periodo es requerido';
-    const fields = [
-      'produccionMensual',
-      'presupusto',
-      'produccionPrimeraMensual',
-      'produccionSegundaMensual',
-      'produccionTerceraMensual',
-      'produccionCascoteMensual',
-    ];
+    const fields = ['presu', 'producMen'];
     for (const k of fields) {
       const n = parseInputNumber(form[k]);
       if (n == null || n < 0) e[k] = 'Valor inválido';
@@ -168,12 +132,12 @@ export default function CalidadModal({
 
   const isValid = Object.keys(errors).length === 0;
 
-  // 🔹 Formateo dinámico usando tu formatNumber()
   const onChangeNumber = (key) => (e) => {
     const value = e.target.value;
     setField(key, formatNumber(value));
   };
 
+  // === GUARDAR ===
   const handleSave = async () => {
     setRootError('');
     if (!isValid) {
@@ -183,12 +147,8 @@ export default function CalidadModal({
     }
 
     const payload = {
-      produccionMensual: parseInputNumber(form.produccionMensual),
-      presupusto: parseInputNumber(form.presupusto),
-      produccionPrimeraMensual: parseInputNumber(form.produccionPrimeraMensual),
-      produccionSegundaMensual: parseInputNumber(form.produccionSegundaMensual),
-      produccionTerceraMensual: parseInputNumber(form.produccionTerceraMensual),
-      produccionCascoteMensual: parseInputNumber(form.produccionCascoteMensual),
+      presu: parseInputNumber(form.presu),
+      producMen: parseInputNumber(form.producMen),
     };
 
     try {
@@ -205,7 +165,7 @@ export default function CalidadModal({
       onSuccess?.();
       onClose?.();
     } catch (err) {
-      console.error('❌ Error al guardar:', err);
+      console.error('❌ Error al guardar producción:', err);
       setRootError('Error al guardar. Intenta nuevamente.');
     } finally {
       setSaving(false);
@@ -214,18 +174,19 @@ export default function CalidadModal({
 
   const displayPeriodo = useMemo(() => {
     if (!form.periodo) return '';
-    return formatMonthYear(form.periodo).toLowerCase(); // ej: "julio 2025"
+    return formatMonthYear(form.periodo).toLowerCase();
   }, [form.periodo]);
 
+  // === RENDER ===
   return (
     <Dialog
       open={open}
       onClose={saving ? undefined : onClose}
       fullWidth
-      maxWidth="md"
+      maxWidth="sm"
     >
       <DialogTitle>
-        {isEdit ? 'Editar Registro de Calidad' : 'Registrar Calidad'}
+        {isEdit ? 'Editar Registro de Producción' : 'Registrar Producción'}
       </DialogTitle>
 
       <DialogContent dividers>
@@ -236,7 +197,7 @@ export default function CalidadModal({
         )}
 
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={4}>
+          <Grid item xs={12} sm={6}>
             <TextField
               label="Periodo (mes/año)"
               type="month"
@@ -251,14 +212,10 @@ export default function CalidadModal({
           </Grid>
 
           {[
-            ['produccionMensual', 'Producción Mensual'],
-            ['presupusto', 'Presupuesto'],
-            ['produccionPrimeraMensual', 'Producción Primera Mensual'],
-            ['produccionSegundaMensual', 'Producción Segunda Mensual'],
-            ['produccionTerceraMensual', 'Producción Tercera Mensual'],
-            ['produccionCascoteMensual', 'Producción Cascote Mensual'],
+            ['presu', 'Presupuesto'],
+            ['producMen', 'Producción Mensual'],
           ].map(([key, label]) => (
-            <Grid item xs={12} sm={4} key={key}>
+            <Grid item xs={12} sm={6} key={key}>
               <TextField
                 label={label}
                 fullWidth
@@ -270,7 +227,7 @@ export default function CalidadModal({
                 helperText={
                   (showErrors || touched[key]) && errors[key]
                     ? errors[key]
-                    : 'Ej: 1 234.56'
+                    : 'Ej: 123 456.78'
                 }
                 onPaste={(e) => {
                   const text = e.clipboardData.getData('text');
