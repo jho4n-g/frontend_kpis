@@ -228,15 +228,9 @@ export default function AppShell({ window }) {
       ],
     },
     {
+      segment: 'precioUnitarioDos',
       title: 'Precio Unitario',
       icon: <AttachMoney />,
-      children: [
-        {
-          segment: 'precioUnitarioDos',
-          title: 'Registro',
-          icon: <TableChartIcon />,
-        },
-      ],
     },
     {
       segment: 'calidad',
@@ -249,13 +243,13 @@ export default function AppShell({ window }) {
       icon: <GroupIcon />,
     },
     {
-      segment: 'visible',
-      title: 'Produccion',
+      segment: 'disponibilidad',
+      title: 'Disponibilidad por linea',
       icon: <GroupIcon />,
     },
     {
-      segment: 'disponibilidad',
-      title: 'Disponibilidad por linea',
+      segment: 'geneResiduoSolidos',
+      title: 'Generacion de Residuos Solidos',
       icon: <GroupIcon />,
     },
 

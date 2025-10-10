@@ -17,6 +17,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
+    "@react-pdf/renderer": "^4.3.1",
     "@tanstack/react-table": "^8.21.3",
     "@toolpad/core": "^0.16.0",
     "axios": "^1.12.2",
@@ -26,6 +27,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.3",
+    "react-to-print": "^3.1.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

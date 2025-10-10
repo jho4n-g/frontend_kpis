@@ -14,6 +14,7 @@ import Produccion from './pages/IndicadoresDespempeño/produccion';
 import LoginPage from './pages/Login/LoginPage';
 import VisibleColumnsBasicExample from './pages/experimento/VisibleColumnsBasicExample';
 import DisponibilidadLiens from './pages/IndicadoresDespempeño/DisponibilidadLineas';
+import GeneResiduoSolidosPage from './pages/IndicadoresDespempeño/GeneracionResiduoSolidos/GeneResiduoSolidosPage';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
         <Route path="produccion" element={<Produccion />} />
         <Route path="visible" element={<VisibleColumnsBasicExample />} />
         <Route path="disponibilidad" element={<DisponibilidadLiens />} />
+        <Route path="geneResiduoSolidos" element={<GeneResiduoSolidosPage />} />
       </Route>
 
       {/* Rutas fuera del layout */}
