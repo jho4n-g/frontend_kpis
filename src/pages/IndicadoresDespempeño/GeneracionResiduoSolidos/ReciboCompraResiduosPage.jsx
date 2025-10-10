@@ -33,6 +33,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import ConfirmDialog from '../../../components/general/ConfirmDialog.jsx';
 import { useNotify } from '../../../ui/NotificationsProvider.jsx';
+import AutoOpenPdf from '../../../pdfmodel/AutoOpenPdf.jsx';
 
 // Servicios de productos
 import {
@@ -255,6 +256,36 @@ function ConfirmRegistrarReciboDialog({
   );
 }
 
+function mapToPdfRecibo(r) {
+  return {
+    numero: r.nro_recibo ?? r.numero ?? '',
+    fecha: r.fecha ?? '',
+    cliente: r.nombre_cliente ?? r.cliente ?? '',
+    items: (r.items || []).map((it) => ({
+      descripcion: it.producto_nombre ?? it.producto?.nombre ?? '',
+      cantidad: Number(it.cantidad ?? 0),
+      um: it.unidadMedida ?? it.um ?? 'kg',
+      precioUnit: Number(it.precio_unitario ?? 0),
+      total: Number(
+        it.total_linea ??
+          Number(it.cantidad ?? 0) * Number(it.precio_unitario ?? 0)
+      ),
+    })),
+    total:
+      r.total ??
+      (r.items || []).reduce(
+        (a, it) =>
+          a +
+          Number(
+            it.total_linea ??
+              Number(it.cantidad ?? 0) * Number(it.precio_unitario ?? 0)
+          ),
+        0
+      ),
+    montoEnLetras: r.montoEnLetras, // opcional si lo tienes
+    observaciones: r.descripcion || '', // opcional si lo tienes
+  };
+}
 // ————————————————————————————————————————————————
 export default function ReciboCompraResiduos() {
   const notify = useNotify();
@@ -266,7 +297,7 @@ export default function ReciboCompraResiduos() {
   const [rows, setRows] = useState(
     Array.from({ length: 7 }, (_, i) => makeEmptyRow(i))
   );
-
+  const [autoPdfRecibo, setAutoPdfRecibo] = useState(null);
   // Productos del backend
   const [productos, setProductos] = useState([]); // [{id, nombre}]
   const [loadingProductos, setLoadingProductos] = useState(false);
@@ -453,6 +484,7 @@ export default function ReciboCompraResiduos() {
         nro_recibo: payloadPreview.nro_recibo,
         fecha: payloadPreview.fecha,
         nombre_cliente: payloadPreview.nombre_cliente,
+        descripcion: payloadPreview.observaciones,
         items: payloadPreview.items.map((it) => ({
           producto_id: it.producto_id,
           cantidad: it.cantidad,
@@ -461,8 +493,11 @@ export default function ReciboCompraResiduos() {
           total_linea: it.total_linea,
         })),
       };
-      await createRecibo(data);
+      const register = await createRecibo(data);
       notify.success('Recibo registrado');
+      const pdfData = mapToPdfRecibo(register);
+      await setAutoPdfRecibo(pdfData);
+
       handleNuevo();
     } catch (err) {
       const msg =
@@ -477,458 +512,439 @@ export default function ReciboCompraResiduos() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
-        {/* Encabezado */}
-        <Typography variant="h5" align="center" sx={{ fontWeight: 700, mb: 2 }}>
-          RECIBO DE COMPRA DE RESIDUOS
-        </Typography>
+    <>
+      <Container maxWidth="lg" sx={{ py: 3 }}>
+        <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+          {/* Encabezado */}
+          <Typography
+            variant="h5"
+            align="center"
+            sx={{ fontWeight: 700, mb: 2 }}
+          >
+            RECIBO DE COMPRA DE RESIDUOS
+          </Typography>
 
-        <Grid container spacing={4} alignItems="stretch">
-          {/* Banda NOMBRE DEL CLIENTE */}
-          <Grid item xs={12} md={8}>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
-                borderRadius: 1,
-                overflow: 'hidden',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
+          <Grid container spacing={4} alignItems="stretch">
+            {/* Banda NOMBRE DEL CLIENTE */}
+            <Grid item xs={12} md={8}>
               <Box
                 sx={{
-                  bgcolor: brandGreen,
-                  color: 'white',
-                  px: 2,
-                  py: 1.1,
-                  fontWeight: 100,
-                  display: 'flex',
-                  alignItems: 'center',
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
+                  borderRadius: 1,
+                  overflow: 'hidden',
+                  border: '1px solid',
+                  borderColor: 'divider',
                 }}
               >
-                NOMBRE DEL CLIENTE
-              </Box>
-              <Box sx={{ p: 1, width: 400 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  placeholder="Nombre completo"
-                  value={cliente}
-                  onChange={(e) => setCliente(e.target.value)}
-                />
-              </Box>
-            </Box>
-          </Grid>
-
-          {/* Caja No Recibo / Fecha */}
-          <Grid item xs={12} md={4}>
-            <Paper variant="outlined" sx={{ p: 1.5, height: '100%' }}>
-              <Grid container spacing={1} alignItems="center">
-                <Grid item xs={6}>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    No RECIBO
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
+                <Box
+                  sx={{
+                    bgcolor: brandGreen,
+                    color: 'white',
+                    px: 2,
+                    py: 1.1,
+                    fontWeight: 100,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  NOMBRE DEL CLIENTE
+                </Box>
+                <Box sx={{ p: 1, width: 400 }}>
                   <TextField
                     size="small"
                     fullWidth
-                    value={noRecibo}
-                    onChange={(e) => setNoRecibo(e.target.value)}
-                    inputProps={{ inputMode: 'numeric' }}
+                    placeholder="Nombre completo"
+                    value={cliente}
+                    onChange={(e) => setCliente(e.target.value)}
                   />
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    FECHA
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <TextField
-                    type="date"
-                    size="small"
-                    fullWidth
-                    value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
-                  />
-                </Grid>
-              </Grid>
-            </Paper>
-          </Grid>
+                </Box>
+              </Box>
+            </Grid>
 
-          {/* Tabla */}
-          <Grid item xs={12}>
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small" sx={{ tableLayout: 'fixed' }}>
-                <TableHead>
-                  <TableRow>
-                    <TableCell
-                      sx={{
-                        bgcolor: brandGreen,
-                        color: 'white',
-                        fontWeight: 700,
-                        borderColor: '#e0e0e0',
-                        width: 70,
-                      }}
-                    >
-                      ITEM
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        bgcolor: brandGreen,
-                        color: 'white',
-                        fontWeight: 700,
-                        borderColor: '#e0e0e0',
-                        width: '25%',
-                        minWidth: 220,
-                      }}
-                    >
-                      DESCRIPCIÓN
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        bgcolor: brandGreen,
-                        color: 'white',
-                        fontWeight: 700,
-                        borderColor: '#e0e0e0',
-                        width: 110,
-                      }}
-                    >
-                      CANTIDAD
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        bgcolor: brandGreen,
-                        color: 'white',
-                        fontWeight: 700,
-                        borderColor: '#e0e0e0',
-                        width: 100,
-                      }}
-                    >
-                      U.M.
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        bgcolor: brandGreen,
-                        color: 'white',
-                        fontWeight: 700,
-                        borderColor: '#e0e0e0',
-                        width: 130,
-                      }}
-                    >
-                      P.U. (Bs)
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        bgcolor: brandGreen,
-                        color: 'white',
-                        fontWeight: 700,
-                        borderColor: '#e0e0e0',
-                        width: 140,
-                      }}
-                    >
-                      TOTAL (Bs)
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
+            {/* Caja No Recibo / Fecha */}
+            <Grid item xs={12} md={4}>
+              <Paper variant="outlined" sx={{ p: 1.5, height: '100%' }}>
+                <Grid container spacing={1} alignItems="center">
+                  <Grid item xs={6}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      No RECIBO
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      value={noRecibo}
+                      onChange={(e) => setNoRecibo(e.target.value)}
+                      inputProps={{ inputMode: 'numeric' }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      FECHA
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      type="date"
+                      size="small"
+                      fullWidth
+                      value={fecha}
+                      onChange={(e) => setFecha(e.target.value)}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
 
-                <TableBody>
-                  {rows.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell width={70}>{r.item}</TableCell>
-                      <TableCell>
-                        <Autocomplete
-                          loading={loadingProductos}
-                          size="small"
-                          options={productos}
-                          value={r.descripcion || ''}
-                          // Al cambiar selección
-                          onChange={(event, newValue) => {
-                            if (typeof newValue === 'string') {
-                              // Texto libre
-                              handleRowChange(i, 'descripcion', newValue);
-                            } else if (newValue && newValue.inputValue) {
-                              // Opción "Añadir ..."
-                              const label = newValue.inputValue.trim();
-                              if (label) {
-                                openCreateProducto(label, i);
-                              }
-                            } else if (newValue && newValue.nombre) {
-                              // Seleccionó un producto existente
-                              handleRowChange(
-                                i,
-                                'descripcion',
-                                newValue.nombre
-                              );
-                            } else {
-                              handleRowChange(i, 'descripcion', '');
-                            }
-                          }}
-                          // Al escribir en el input
-                          onInputChange={(event, newInput) => {
-                            handleRowChange(i, 'descripcion', newInput || '');
-                          }}
-                          selectOnFocus
-                          clearOnBlur
-                          handleHomeEndKeys
-                          // Agrega "Añadir ..." si no existe
-                          filterOptions={(options, params) => {
-                            const filtered = baseFilter(options, params);
-                            const { inputValue } = params;
-                            const exists = options.some(
-                              (opt) =>
-                                String(opt?.nombre ?? '').toLowerCase() ===
-                                String(inputValue ?? '').toLowerCase()
-                            );
-                            if (inputValue && !exists) {
-                              filtered.push({
-                                inputValue,
-                                nombre: `Añadir "${inputValue}"`,
-                                __add__: true,
-                              });
-                            }
-                            return filtered;
-                          }}
-                          getOptionLabel={(option) => {
-                            if (typeof option === 'string') return option;
-                            if (option.inputValue) return option.inputValue;
-                            return option?.nombre || '';
-                          }}
-                          renderOption={(props, option) => {
-                            const isAdd = option.__add__ || option.inputValue;
-                            const label =
-                              option?.nombre || option.inputValue || '';
-                            return (
-                              <li
-                                {...props}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  gap: 8,
-                                }}
-                              >
-                                <span>{label}</span>
-                                {/* Acciones para opciones existentes */}
-                                {!isAdd && option?.id && (
-                                  <span>
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openEditProducto(option);
-                                      }}
-                                    >
-                                      <EditIcon fontSize="small" />
-                                    </IconButton>
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteProducto(option);
-                                      }}
-                                    >
-                                      <DeleteOutlineIcon fontSize="small" />
-                                    </IconButton>
-                                  </span>
-                                )}
-                                {/* Acción para añadir nuevo */}
-                                {isAdd && (
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openCreateProducto(option.inputValue, i);
-                                    }}
-                                    sx={{ color: 'primary.main' }}
-                                  >
-                                    <AddIcon fontSize="small" />
-                                  </IconButton>
-                                )}
-                              </li>
-                            );
-                          }}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              variant="standard"
-                              placeholder="Detalle del residuo / producto"
-                            />
-                          )}
-                        />
+            {/* Tabla */}
+            <Grid item xs={12}>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small" sx={{ tableLayout: 'fixed' }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell
+                        sx={{
+                          bgcolor: brandGreen,
+                          color: 'white',
+                          fontWeight: 700,
+                          borderColor: '#e0e0e0',
+                          width: 70,
+                        }}
+                      >
+                        ITEM
                       </TableCell>
-                      <TableCell width={140}>
-                        <TextField
-                          size="small"
-                          variant="standard"
-                          fullWidth
-                          value={r.cantidad}
-                          onChange={(e) =>
-                            handleRowChange(i, 'cantidad', e.target.value)
-                          }
-                          inputProps={{ inputMode: 'decimal' }}
-                          InputProps={{
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                &nbsp;
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
+                      <TableCell
+                        sx={{
+                          bgcolor: brandGreen,
+                          color: 'white',
+                          fontWeight: 700,
+                          borderColor: '#e0e0e0',
+                          width: '25%',
+                          minWidth: 220,
+                        }}
+                      >
+                        DESCRIPCIÓN
                       </TableCell>
-                      <TableCell width={120}>
-                        <TextField
-                          select
-                          size="small"
-                          variant="standard"
-                          fullWidth
-                          value={r.um}
-                          onChange={(e) =>
-                            handleRowChange(i, 'um', e.target.value)
-                          }
-                        >
-                          {['kg', 'unidad', 'm', 'litro'].map((o) => (
-                            <MenuItem key={o} value={o}>
-                              {o}
-                            </MenuItem>
-                          ))}
-                        </TextField>
+                      <TableCell
+                        sx={{
+                          bgcolor: brandGreen,
+                          color: 'white',
+                          fontWeight: 700,
+                          borderColor: '#e0e0e0',
+                          width: 110,
+                        }}
+                      >
+                        CANTIDAD
                       </TableCell>
-                      <TableCell width={160}>
-                        <TextField
-                          size="small"
-                          variant="standard"
-                          fullWidth
-                          value={r.pu}
-                          onChange={(e) =>
-                            handleRowChange(i, 'pu', e.target.value)
-                          }
-                          inputProps={{ inputMode: 'decimal' }}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                Bs
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
+                      <TableCell
+                        sx={{
+                          bgcolor: brandGreen,
+                          color: 'white',
+                          fontWeight: 700,
+                          borderColor: '#e0e0e0',
+                          width: 100,
+                        }}
+                      >
+                        U.M.
                       </TableCell>
-                      <TableCell width={160} sx={{ fontWeight: 700 }}>
-                        Bs {money(lineTotal(r))}
+                      <TableCell
+                        sx={{
+                          bgcolor: brandGreen,
+                          color: 'white',
+                          fontWeight: 700,
+                          borderColor: '#e0e0e0',
+                          width: 130,
+                        }}
+                      >
+                        P.U. (Bs)
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          bgcolor: brandGreen,
+                          color: 'white',
+                          fontWeight: 700,
+                          borderColor: '#e0e0e0',
+                          width: 140,
+                        }}
+                      >
+                        TOTAL (Bs)
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
+                  </TableHead>
 
-                <TableFooter>
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      align="right"
-                      sx={{ fontWeight: 700 }}
-                    >
-                      TOTAL Bs.
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>
-                      Bs {money(total)}
-                    </TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
-            </TableContainer>
-          </Grid>
+                  <TableBody>
+                    {rows.map((r, i) => (
+                      <TableRow key={i}>
+                        <TableCell width={70}>{r.item}</TableCell>
+                        <TableCell>
+                          <Autocomplete
+                            loading={loadingProductos}
+                            size="small"
+                            options={productos}
+                            value={r.descripcion || ''}
+                            // Al cambiar selección
+                            onChange={(event, newValue) => {
+                              if (typeof newValue === 'string') {
+                                // Texto libre
+                                handleRowChange(i, 'descripcion', newValue);
+                              } else if (newValue && newValue.inputValue) {
+                                // Opción "Añadir ..."
+                                const label = newValue.inputValue.trim();
+                                if (label) {
+                                  openCreateProducto(label, i);
+                                }
+                              } else if (newValue && newValue.nombre) {
+                                // Seleccionó un producto existente
+                                handleRowChange(
+                                  i,
+                                  'descripcion',
+                                  newValue.nombre
+                                );
+                              } else {
+                                handleRowChange(i, 'descripcion', '');
+                              }
+                            }}
+                            // Al escribir en el input
+                            onInputChange={(event, newInput) => {
+                              handleRowChange(i, 'descripcion', newInput || '');
+                            }}
+                            selectOnFocus
+                            clearOnBlur
+                            handleHomeEndKeys
+                            // Agrega "Añadir ..." si no existe
+                            filterOptions={(options, params) => {
+                              const filtered = baseFilter(options, params);
+                              const { inputValue } = params;
+                              const exists = options.some(
+                                (opt) =>
+                                  String(opt?.nombre ?? '').toLowerCase() ===
+                                  String(inputValue ?? '').toLowerCase()
+                              );
+                              if (inputValue && !exists) {
+                                filtered.push({
+                                  inputValue,
+                                  nombre: `Añadir "${inputValue}"`,
+                                  __add__: true,
+                                });
+                              }
+                              return filtered;
+                            }}
+                            getOptionLabel={(option) => {
+                              if (typeof option === 'string') return option;
+                              if (option.inputValue) return option.inputValue;
+                              return option?.nombre || '';
+                            }}
+                            renderOption={(props, option) => {
+                              const isAdd = option.__add__ || option.inputValue;
+                              const label =
+                                option?.nombre || option.inputValue || '';
+                              return (
+                                <li
+                                  {...props}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: 8,
+                                  }}
+                                >
+                                  <span>{label}</span>
+                                  {/* Acciones para opciones existentes */}
+                                  {!isAdd && option?.id && (
+                                    <span>
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openEditProducto(option);
+                                        }}
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteProducto(option);
+                                        }}
+                                      >
+                                        <DeleteOutlineIcon fontSize="small" />
+                                      </IconButton>
+                                    </span>
+                                  )}
+                                  {/* Acción para añadir nuevo */}
+                                  {isAdd && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openCreateProducto(
+                                          option.inputValue,
+                                          i
+                                        );
+                                      }}
+                                      sx={{ color: 'primary.main' }}
+                                    >
+                                      <AddIcon fontSize="small" />
+                                    </IconButton>
+                                  )}
+                                </li>
+                              );
+                            }}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                variant="standard"
+                                placeholder="Detalle del residuo / producto"
+                              />
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell width={140}>
+                          <TextField
+                            size="small"
+                            variant="standard"
+                            fullWidth
+                            value={r.cantidad}
+                            onChange={(e) =>
+                              handleRowChange(i, 'cantidad', e.target.value)
+                            }
+                            inputProps={{ inputMode: 'decimal' }}
+                            InputProps={{
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  &nbsp;
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell width={120}>
+                          <TextField
+                            select
+                            size="small"
+                            variant="standard"
+                            fullWidth
+                            value={r.um}
+                            onChange={(e) =>
+                              handleRowChange(i, 'um', e.target.value)
+                            }
+                          >
+                            {['kg', 'unidad', 'm', 'litro'].map((o) => (
+                              <MenuItem key={o} value={o}>
+                                {o}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        </TableCell>
+                        <TableCell width={160}>
+                          <TextField
+                            size="small"
+                            variant="standard"
+                            fullWidth
+                            value={r.pu}
+                            onChange={(e) =>
+                              handleRowChange(i, 'pu', e.target.value)
+                            }
+                            inputProps={{ inputMode: 'decimal' }}
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  Bs
+                                </InputAdornment>
+                              ),
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell width={160} sx={{ fontWeight: 700 }}>
+                          Bs {money(lineTotal(r))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
 
-          {/* Observaciones + acciones */}
-          <Grid item xs={12} md={8}>
-            <Stack spacing={1}>
-              <TextField
-                label="Observaciones"
-                multiline
-                minRows={2}
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-              />
-              <Typography variant="caption" color="text.secondary">
-                El comprador es responsable de la disposición final de la compra
-                a COBOCE – Cerámica.
-              </Typography>
-            </Stack>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Stack spacing={1.5} alignItems={{ xs: 'stretch', md: 'flex-end' }}>
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="contained"
-                  startIcon={<AddCircleOutlineIcon />}
-                  onClick={handleNuevo}
-                >
-                  NUEVO RECIBO
-                </Button>
-                <Button
-                  color="success"
-                  variant="contained"
-                  disabled={saving}
-                  onClick={handleOpenConfirmRegistrar}
-                >
-                  REGISTRAR
-                </Button>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        align="right"
+                        sx={{ fontWeight: 700 }}
+                      >
+                        TOTAL Bs.
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>
+                        Bs {money(total)}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </TableContainer>
+            </Grid>
+
+            {/* Observaciones + acciones */}
+            <Grid item xs={12} md={8}>
+              <Stack spacing={1}>
+                <TextField
+                  label="Observaciones"
+                  multiline
+                  minRows={2}
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  El comprador es responsable de la disposición final de la
+                  compra a COBOCE – Cerámica.
+                </Typography>
               </Stack>
-            </Stack>
-          </Grid>
-
-          {/* Firmas */}
-          <Grid item xs={12} sx={{ mt: 2 }}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Box
-                  sx={{
-                    pt: 1,
-                    borderTop: '2px solid',
-                    borderColor: 'divider',
-                    textAlign: 'center',
-                  }}
-                >
-                  Firma del comprador
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box
-                  sx={{
-                    pt: 1,
-                    borderTop: '2px solid',
-                    borderColor: 'divider',
-                    textAlign: 'center',
-                  }}
-                >
-                  Firma del vendedor
-                </Box>
-              </Grid>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Stack
+                spacing={1.5}
+                alignItems={{ xs: 'stretch', md: 'flex-end' }}
+              >
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddCircleOutlineIcon />}
+                    disabled={saving}
+                    onClick={handleOpenConfirmRegistrar}
+                  >
+                    REGISTRAR NUEVO RECIBO
+                  </Button>
+                </Stack>
+              </Stack>
             </Grid>
           </Grid>
-        </Grid>
-      </Paper>
+        </Paper>
 
-      {/* Dialogo Crear/Editar Producto */}
-      <ProductoDialog
-        open={prodDialogOpen}
-        initial={prodDialogInitial}
-        onClose={handleProductoDialogClose}
-      />
-      {/* Confirmación eliminar producto (catálogo) */}
-      <ConfirmDialog
-        open={confirm.open}
-        title={confirm.title}
-        subtitle={confirm.subtitle}
-        onClose={handleCloseConfirm} // recibe true/false
-      />
-      {/* Confirmación registrar recibo con resumen */}
-      <ConfirmRegistrarReciboDialog
-        open={confirmRegistrarOpen}
-        onClose={handleConfirmRegistrarClose}
-        payloadPreview={payloadPreview}
-      />
-    </Container>
+        {/* Dialogo Crear/Editar Producto */}
+        <ProductoDialog
+          open={prodDialogOpen}
+          initial={prodDialogInitial}
+          onClose={handleProductoDialogClose}
+        />
+        {/* Confirmación eliminar producto (catálogo) */}
+        <ConfirmDialog
+          open={confirm.open}
+          title={confirm.title}
+          subtitle={confirm.subtitle}
+          onClose={handleCloseConfirm} // recibe true/false
+        />
+        {/* Confirmación registrar recibo con resumen */}
+        <ConfirmRegistrarReciboDialog
+          open={confirmRegistrarOpen}
+          onClose={handleConfirmRegistrarClose}
+          payloadPreview={payloadPreview}
+        />
+      </Container>
+      {autoPdfRecibo && (
+        <AutoOpenPdf
+          recibo={autoPdfRecibo}
+          onDone={() => setAutoPdfRecibo(null)}
+        />
+      )}
+    </>
   );
 }

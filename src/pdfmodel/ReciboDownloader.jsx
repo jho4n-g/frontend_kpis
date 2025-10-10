@@ -4,61 +4,61 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { BlobProvider } from '@react-pdf/renderer';
 import ReciboPDF from './recibo.jsx'; // Asegúrate de la ruta correcta
 
-export default function ReciboDownloader() {
-  const recibo = {
-    numero: 1198,
-    fecha: '08/10/2025',
-    cliente: 'Jhoan Sebastian Gutierrez Veleaco',
-    items: [
-      {
-        descripcion: 'Cartón',
-        cantidad: 5,
-        um: 'Kg',
-        precioUnit: 10,
-        total: 50,
-      },
-      {
-        descripcion: 'Cartón',
-        cantidad: 5,
-        um: 'Kg',
-        precioUnit: 10,
-        total: 50,
-      },
-      {
-        descripcion: 'Cartón',
-        cantidad: 5,
-        um: 'Kg',
-        precioUnit: 10,
-        total: 50,
-      },
-      {
-        descripcion: 'Cartón',
-        cantidad: 5,
-        um: 'Kg',
-        precioUnit: 10,
-        total: 50,
-      },
-      {
-        descripcion: 'Cartón',
-        cantidad: 5,
-        um: 'Kg',
-        precioUnit: 10,
-        total: 50,
-      },
-      {
-        descripcion: 'Cartón',
-        cantidad: 5,
-        um: 'Kg',
-        precioUnit: 10,
-        total: 50,
-      },
+export default function ReciboDownloader(recibo) {
+  // const recibo = {
+  //   numero: 1198,
+  //   fecha: '08/10/2025',
+  //   cliente: 'Jhoan Sebastian Gutierrez Veleaco',
+  //   items: [
+  //     {
+  //       descripcion: 'Cartón',
+  //       cantidad: 5,
+  //       um: 'Kg',
+  //       precioUnit: 10,
+  //       total: 50,
+  //     },
+  //     {
+  //       descripcion: 'Cartón',
+  //       cantidad: 5,
+  //       um: 'Kg',
+  //       precioUnit: 10,
+  //       total: 50,
+  //     },
+  //     {
+  //       descripcion: 'Cartón',
+  //       cantidad: 5,
+  //       um: 'Kg',
+  //       precioUnit: 10,
+  //       total: 50,
+  //     },
+  //     {
+  //       descripcion: 'Cartón',
+  //       cantidad: 5,
+  //       um: 'Kg',
+  //       precioUnit: 10,
+  //       total: 50,
+  //     },
+  //     {
+  //       descripcion: 'Cartón',
+  //       cantidad: 5,
+  //       um: 'Kg',
+  //       precioUnit: 10,
+  //       total: 50,
+  //     },
+  //     {
+  //       descripcion: 'Cartón',
+  //       cantidad: 5,
+  //       um: 'Kg',
+  //       precioUnit: 10,
+  //       total: 50,
+  //     },
 
-      // agrega más ítems si quieres
-    ],
-    total: 50,
-    montoEnLetras: 'CINCUENTA 00/100 BOLIVIANOS',
-    observaciones: 'MATERIAL EN DESUSO',
-  };
+  //     // agrega más ítems si quieres
+  //   ],
+  //   total: 50,
+  //   montoEnLetras: 'CINCUENTA 00/100 BOLIVIANOS',
+  //   observaciones: 'MATERIAL EN DESUSO',
+  // };
 
   // Evita recrear el <Document> en cada render
   const doc = useMemo(() => <ReciboPDF recibo={recibo} />, [recibo]);

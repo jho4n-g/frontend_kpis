@@ -20,6 +20,7 @@ import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import Autocomplete from '@mui/material/Autocomplete';
+import AutoOpenPdf from '../../../pdfmodel/AutoOpenPdf.jsx';
 
 import { useNotify } from '@/ui/NotificationsProvider.jsx';
 
@@ -72,11 +73,44 @@ function AskNroDialog({ open, title, label = 'No. de recibo', onClose }) {
     </Dialog>
   );
 }
+//normalizar
+// Convierte tu estructura (nro_recibo, nombre_cliente, etc.) a la que usa ReciboPDF
+function mapToPdfRecibo(r) {
+  return {
+    numero: r.nro_recibo ?? r.numero ?? '',
+    fecha: r.fecha ?? '',
+    cliente: r.nombre_cliente ?? r.cliente ?? '',
+    items: (r.items || []).map((it) => ({
+      descripcion: it.producto_nombre ?? it.producto?.nombre ?? '',
+      cantidad: Number(it.cantidad ?? 0),
+      um: it.unidadMedida ?? it.um ?? 'kg',
+      precioUnit: Number(it.precio_unitario ?? 0),
+      total: Number(
+        it.total_linea ??
+          Number(it.cantidad ?? 0) * Number(it.precio_unitario ?? 0)
+      ),
+    })),
+    total:
+      r.total ??
+      (r.items || []).reduce(
+        (a, it) =>
+          a +
+          Number(
+            it.total_linea ??
+              Number(it.cantidad ?? 0) * Number(it.precio_unitario ?? 0)
+          ),
+        0
+      ),
+    montoEnLetras: r.montoEnLetras, // opcional si lo tienes
+    observaciones: r.observaciones || '', // opcional si lo tienes
+  };
+}
 
 // ----------------- Dialogo EDITAR RECIBO (encabezado + items) -----------------
 function EditReciboDialog({ open, recibo, onClose }) {
   // recibo: { id, nro_recibo, fecha, nombre_cliente, items:[{...}] }
   const notify = useNotify();
+  const [autoPdfRecibo, setAutoPdfRecibo] = useState(null);
   const [prodOptions, setProdOptions] = useState([]);
   const [form, setForm] = useState({
     nro_recibo: '',
@@ -211,6 +245,11 @@ function EditReciboDialog({ open, recibo, onClose }) {
       };
       const updated = await updateRecibo(recibo.id, payload);
       notify.success('Recibo actualizado');
+      //console.log(updated);
+
+      const pdfData = mapToPdfRecibo(updated);
+      await setAutoPdfRecibo(pdfData);
+
       onClose(true, updated);
     } catch (err) {
       const msg =
@@ -226,168 +265,183 @@ function EditReciboDialog({ open, recibo, onClose }) {
   };
 
   return (
-    <Dialog open={open} onClose={() => onClose(false)} maxWidth="md" fullWidth>
-      <DialogTitle>Editar recibo</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          {rootError && <Alert severity="error">{rootError}</Alert>}
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label="No. recibo"
-              value={form.nro_recibo}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, nro_recibo: e.target.value }))
-              }
-              error={Boolean(errors.nro_recibo)}
-              helperText={errors.nro_recibo || ' '}
-              fullWidth
-            />
-            <TextField
-              label="Fecha (YYYY-MM-DD)"
-              value={form.fecha}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, fecha: e.target.value }))
-              }
-              error={Boolean(errors.fecha)}
-              helperText={errors.fecha || ' '}
-              fullWidth
-            />
-          </Stack>
-
-          <TextField
-            label="Nombre del cliente"
-            value={form.nombre_cliente}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, nombre_cliente: e.target.value }))
-            }
-            error={Boolean(errors.nombre_cliente)}
-            helperText={errors.nombre_cliente || ' '}
-            fullWidth
-          />
-
-          <Divider />
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Ítems (máx. {MAX_ITEMS})
-            </Typography>
-            <Box sx={{ flex: 1 }} />
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={addItem}
-              disabled={(form.items?.length ?? 0) >= MAX_ITEMS}
-            >
-              Añadir ítem
-            </Button>
-          </Stack>
-
-          {Boolean(errors.items) && (
-            <Alert severity="warning">{errors.items}</Alert>
-          )}
-
+    <>
+      <Dialog
+        open={open}
+        onClose={() => onClose(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Editar recibo</DialogTitle>
+        <DialogContent dividers>
           <Stack spacing={2}>
-            {(form.items ?? []).map((it, i) => {
-              const itErr = errors[`item_${i}`] || {};
-              const selected =
-                prodOptions.find((p) => p.id === it.producto_id) || null;
-              const total =
-                Number(it.total_linea) ||
-                toNum(it.cantidad) * toNum(it.precio_unitario);
+            {rootError && <Alert severity="error">{rootError}</Alert>}
 
-              return (
-                <Paper
-                  key={i}
-                  variant="outlined"
-                  sx={{ p: 1.5, borderRadius: 1.5 }}
-                >
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    <Autocomplete
-                      options={prodOptions}
-                      getOptionLabel={(opt) => opt?.nombre ?? ''}
-                      value={selected}
-                      onChange={(e, val) =>
-                        setItem(i, {
-                          producto_id: val?.id || null,
-                          producto_nombre: val?.nombre || '',
-                        })
-                      }
-                      sx={{ minWidth: 240 }}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Producto"
-                          error={Boolean(itErr.producto_id)}
-                          helperText={itErr.producto_id || ' '}
-                        />
-                      )}
-                    />
-                    <TextField
-                      label="Cantidad"
-                      value={it.cantidad}
-                      onChange={(e) => setItem(i, { cantidad: e.target.value })}
-                      inputMode="decimal"
-                      error={Boolean(itErr.cantidad)}
-                      helperText={itErr.cantidad || ' '}
-                    />
-                    <TextField
-                      label="U.M."
-                      value={it.unidadMedida}
-                      onChange={(e) =>
-                        setItem(i, { unidadMedida: e.target.value })
-                      }
-                      error={Boolean(itErr.unidadMedida)}
-                      helperText={itErr.unidadMedida || ' '}
-                    />
-                    <TextField
-                      label="Precio unitario (Bs)"
-                      value={it.precio_unitario}
-                      onChange={(e) =>
-                        setItem(i, { precio_unitario: e.target.value })
-                      }
-                      inputMode="decimal"
-                      error={Boolean(itErr.precio_unitario)}
-                      helperText={itErr.precio_unitario || ' '}
-                    />
-                    <Box sx={{ minWidth: 140, alignSelf: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Total ítem
-                      </Typography>
-                      <Typography sx={{ fontWeight: 700 }}>
-                        Bs {money(total)}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ flex: 1 }} />
-                    <Button
-                      color="error"
-                      variant="text"
-                      onClick={() => removeItem(i)}
-                      disabled={(form.items?.length ?? 0) <= MIN_ITEMS}
-                    >
-                      Quitar
-                    </Button>
-                  </Stack>
-                </Paper>
-              );
-            })}
-          </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="No. recibo"
+                value={form.nro_recibo}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, nro_recibo: e.target.value }))
+                }
+                error={Boolean(errors.nro_recibo)}
+                helperText={errors.nro_recibo || ' '}
+                fullWidth
+              />
+              <TextField
+                label="Fecha (YYYY-MM-DD)"
+                value={form.fecha}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, fecha: e.target.value }))
+                }
+                error={Boolean(errors.fecha)}
+                helperText={errors.fecha || ' '}
+                fullWidth
+              />
+            </Stack>
 
-          <Stack direction="row" justifyContent="flex-end">
-            <Typography sx={{ fontWeight: 700 }}>
-              Total recibo: Bs {money(totalRecibo)}
-            </Typography>
+            <TextField
+              label="Nombre del cliente"
+              value={form.nombre_cliente}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, nombre_cliente: e.target.value }))
+              }
+              error={Boolean(errors.nombre_cliente)}
+              helperText={errors.nombre_cliente || ' '}
+              fullWidth
+            />
+
+            <Divider />
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                Ítems (máx. {MAX_ITEMS})
+              </Typography>
+              <Box sx={{ flex: 1 }} />
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={addItem}
+                disabled={(form.items?.length ?? 0) >= MAX_ITEMS}
+              >
+                Añadir ítem
+              </Button>
+            </Stack>
+
+            {Boolean(errors.items) && (
+              <Alert severity="warning">{errors.items}</Alert>
+            )}
+
+            <Stack spacing={2}>
+              {(form.items ?? []).map((it, i) => {
+                const itErr = errors[`item_${i}`] || {};
+                const selected =
+                  prodOptions.find((p) => p.id === it.producto_id) || null;
+                const total =
+                  Number(it.total_linea) ||
+                  toNum(it.cantidad) * toNum(it.precio_unitario);
+
+                return (
+                  <Paper
+                    key={i}
+                    variant="outlined"
+                    sx={{ p: 1.5, borderRadius: 1.5 }}
+                  >
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                      <Autocomplete
+                        options={prodOptions}
+                        getOptionLabel={(opt) => opt?.nombre ?? ''}
+                        value={selected}
+                        onChange={(e, val) =>
+                          setItem(i, {
+                            producto_id: val?.id || null,
+                            producto_nombre: val?.nombre || '',
+                          })
+                        }
+                        sx={{ minWidth: 240 }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Producto"
+                            error={Boolean(itErr.producto_id)}
+                            helperText={itErr.producto_id || ' '}
+                          />
+                        )}
+                      />
+                      <TextField
+                        label="Cantidad"
+                        value={it.cantidad}
+                        onChange={(e) =>
+                          setItem(i, { cantidad: e.target.value })
+                        }
+                        inputMode="decimal"
+                        error={Boolean(itErr.cantidad)}
+                        helperText={itErr.cantidad || ' '}
+                      />
+                      <TextField
+                        label="U.M."
+                        value={it.unidadMedida}
+                        onChange={(e) =>
+                          setItem(i, { unidadMedida: e.target.value })
+                        }
+                        error={Boolean(itErr.unidadMedida)}
+                        helperText={itErr.unidadMedida || ' '}
+                      />
+                      <TextField
+                        label="Precio unitario (Bs)"
+                        value={it.precio_unitario}
+                        onChange={(e) =>
+                          setItem(i, { precio_unitario: e.target.value })
+                        }
+                        inputMode="decimal"
+                        error={Boolean(itErr.precio_unitario)}
+                        helperText={itErr.precio_unitario || ' '}
+                      />
+                      <Box sx={{ minWidth: 140, alignSelf: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Total ítem
+                        </Typography>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          Bs {money(total)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1 }} />
+                      <Button
+                        variant="text"
+                        onClick={() => removeItem(i)}
+                        disabled={(form.items?.length ?? 0) <= MIN_ITEMS}
+                      >
+                        Quitar
+                      </Button>
+                    </Stack>
+                  </Paper>
+                );
+              })}
+            </Stack>
+
+            <Stack direction="row" justifyContent="flex-end">
+              <Typography sx={{ fontWeight: 700 }}>
+                Total recibo: Bs {money(totalRecibo)}
+              </Typography>
+            </Stack>
           </Stack>
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => onClose(false)} disabled={saving}>
-          Cancelar
-        </Button>
-        <Button variant="contained" onClick={handleSave} disabled={saving}>
-          Guardar cambios
-        </Button>
-      </DialogActions>
-    </Dialog>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => onClose(false)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving}>
+            Guardar cambios
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Monta auxiliar solo cuando hay que abrir el PDF */}
+      {autoPdfRecibo && (
+        <AutoOpenPdf
+          recibo={autoPdfRecibo}
+          onDone={() => setAutoPdfRecibo(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -468,12 +522,7 @@ function DisableReciboDialog({ open, recibo, onClose }) {
         <Button onClick={() => onClose(false)} disabled={working}>
           Cancelar
         </Button>
-        <Button
-          color="error"
-          variant="contained"
-          onClick={handleDisable}
-          disabled={working}
-        >
+        <Button variant="contained" onClick={handleDisable} disabled={working}>
           Inhabilitar
         </Button>
       </DialogActions>
@@ -664,11 +713,7 @@ export default function RecibosItemsTable() {
           <Button variant="contained" onClick={startEditByNumber}>
             Editar recibo
           </Button>
-          <Button
-            color="error"
-            variant="outlined"
-            onClick={startDisableByNumber}
-          >
+          <Button variant="outlined" onClick={startDisableByNumber}>
             Inhabilitar recibo
           </Button>
         </Box>

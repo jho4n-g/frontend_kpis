@@ -16,10 +16,15 @@ const styles = StyleSheet.create({
   receiptWrap: {
     width: CONTENT_WIDTH,
     alignSelf: 'center',
-    marginBottom: 26, // separación entre recibos
+    marginBottom: 40, // separación entre recibos
   },
 
-  titleRow: { marginBottom: 1, flexDirection: 'row', alignItems: 'flex-start' },
+  titleRow: {
+    marginBottom: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: -6,
+  },
   title: { textAlign: 'center', fontSize: 16, fontWeight: 'bold', flex: 1 },
   boxRight: { width: 190, borderWidth: 1, borderColor: BORDER },
   boxRow: { flexDirection: 'row' },
@@ -68,6 +73,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderTopWidth: 1,
     borderColor: BORDER,
+    height: 20,
   },
 
   // TOTAL (pegado al borde derecho del contenido)

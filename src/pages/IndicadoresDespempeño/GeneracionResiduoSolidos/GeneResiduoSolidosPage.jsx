@@ -55,20 +55,16 @@ export default function BasicTabs() {
           <Tab label="Tabla" {...a11yProps(0)} />
           <Tab label="Informe de ventas" {...a11yProps(1)} />
           <Tab label="Genera recibo" {...a11yProps(2)} />
-          <Tab label="Gestion de residuos" {...a11yProps(3)} />
         </Tabs>
       </Box>
       <CustomTabPanel value={value} index={0}>
         <ReciboDownloader />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={1}>
-        <TablaResiduos />
+        <ProductosTable />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={2}>
         <ReciboCompraResiduosPage />
-      </CustomTabPanel>
-      <CustomTabPanel value={value} index={3}>
-        <ProductosTable />
       </CustomTabPanel>
     </Box>
   );

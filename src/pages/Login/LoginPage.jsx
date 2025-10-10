@@ -40,7 +40,7 @@ export default function MuiLoginMockup() {
         palette: {
           mode,
           // Conservamos primary/secondary para no "cambiar colores" del login
-          primary: { main: mode === 'dark' ? '#22d3ee' : '#0ea5e9' }, // cyan/sky
+          primary: { main: '#006633', contrastText: '#FFFFFF' },
           secondary: { main: '#22c55e' }, // emerald
           background: {
             default: mode === 'dark' ? '#0b0f19' : '#eef2f7',
